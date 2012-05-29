@@ -1,0 +1,93 @@
+.dashboard {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: @dashboard-height;
+    .equip {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 164px;
+        height: 170px;
+        background: url("@{image-system-url}/dashboard-equip.png") no-repeat top left;
+    }
+    .hand {
+        height: 170px;
+        margin: 0 125px 0 164px;
+        background: url("@{image-system-url}/dashboard-hand.png") repeat-x top left;
+    }
+    .avatar {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 125px;
+        height: 170px;
+        background: url("@{image-system-url}/dashboard-avatar.png") no-repeat top left;
+        .figure {
+            width: 94px;
+            height: 96px;
+            margin: 10px 0 0 22px;
+            .name {
+                margin-bottom: 12px;
+                text-align: center;
+                color: #fff;
+            }
+        }
+    }
+    .action-btns {
+        position: absolute;
+        top: 0;
+        right: 125px;
+        width: 106px;
+        height: 168px;
+        background: url("@{image-system-btn-url}/background.png") no-repeat center;
+        li {
+            position: absolute;
+        }
+        .btn-ok {
+            top: 4px;
+            left: 2px;
+            width: 61px;
+            height: 75px;
+            background: url("@{image-system-btn-url}/ok-disabled.png") no-repeat;
+        }
+        .btn-cancel {
+            bottom: 0;
+            left: 5px;
+            width: 61px;
+            height: 75px;
+            background: url("@{image-system-btn-url}/cancel-disabled.png") no-repeat;
+        }
+        .btn-trust,
+        .btn-untrust {
+            bottom: 0;
+            left: 69px;
+            width: 36px;
+            height: 35px;
+        }
+        .btn-trust {
+            background: url("@{image-system-btn-url}/trust.png") no-repeat;
+        }
+        .btn-untrust {
+            background: url("@{image-system-btn-url}/untrust.png") no-repeat;
+        }
+        .btn-discard {
+            top: 45px;
+            right: 3px;
+            width: 33px;
+            height: 81px;
+            background: url("@{image-system-btn-url}/discard-disabled.png") no-repeat;
+        }
+    }
+    .card-list {
+        padding-top: 38px;
+        li {
+            float: left;
+            margin-right: -30px;
+            &:hover {
+                margin-top: -15px;
+                .transition(0.5s ease);
+            }
+        }
+    }
+}

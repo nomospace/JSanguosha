@@ -1,0 +1,128 @@
+@root-url: "../..";
+@image-url: "@{root-url}/resource/image";
+@image-system-url: "@{image-url}/system";
+@image-system-btn-url: "@{image-system-url}/button/irregular";
+@body-max-height: 700px;
+@dashboard-height: 170px;
+@white: #fff;
+@ui-dialog-title-color: #193;
+
+@import "reset.less";
+@import "mainboard.less";
+@import "dashboard.less";
+@import "1v1.less";
+
+.transition(@value){
+    -webkit-transition: @value;
+    -moz-transition: @value;
+    -ms-transition: @value;
+    -o-transition: @value;
+    transition: @value;
+}
+
+@font-face {
+    font-family: '方正隶变';
+    src: url('@{root-url}/resource/font/方正隶变.ttf') format('truetype');
+}
+
+body {
+    min-height: 100%;
+    margin-bottom: -170px;
+    background: url("@{image-url}/backdrop/new-version.jpg") repeat top center;
+}
+
+.ui-tip-dialog {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 9;
+    width: 400px;
+    height: 200px;
+    margin: -150px 0 0 -240px;
+    padding: 0 40px;
+    background: url("@{image-system-url}/tip.png") no-repeat;
+    font-family: '方正隶变';
+    .title {
+        margin: 20px 0 10px;
+        font-size: 24px;
+        color: @ui-dialog-title-color;
+        text-align: center;
+    }
+    .body {
+        line-height: 26px;
+        font-size: 20px;
+        color: @white;
+    }
+}
+
+.ui-hp {
+    height: 26px;
+    margin-top: 5px;
+    padding: 0 5px;
+    li {
+        float: left;
+    }
+}
+
+.player-list {
+    margin-top: 20px;
+    .photo-back {
+        width: 143px;
+        height: 195px;
+        background: url("@{image-system-url}/photo-back.png") no-repeat;
+        .figure {
+            width: 122px;
+            padding-left: 5px;
+            color: @white;
+            text-align: center;
+        }
+        .handcard {
+            height: 30px;
+            padding-left: 5px;
+            color: @white;
+            background: url("@{image-system-url}/handcard.png") no-repeat top left;
+            .number {
+                line-height: 18px;
+                padding-top: 5px;
+            }
+        }
+        .ui-hp {
+            margin: -10px 0 0 30px;
+        }
+        .ui-equip {
+            padding-top: 8px;
+            li {
+                height: 17px;
+                line-height: 17px;
+                padding-left: 22px;
+                font-weight: bold;
+            }
+            .spade {
+                background: url("@{image-system-url}/cardsuit/spade.png") no-repeat -5px;
+            }
+            .heart {
+                background: url("@{image-system-url}/cardsuit/heart.png") no-repeat -5px;
+            }
+            .club {
+                background: url("@{image-system-url}/cardsuit/club.png") no-repeat -5px;
+            }
+            .diamond {
+                background: url("@{image-system-url}/cardsuit/diamond.png") no-repeat -5px;
+            }
+        }
+    }
+}
+
+@media screen and (max-height:@body-max-height) {
+    body {
+        height: @body-max-height;
+    }
+
+    .mainboard {
+        top: @body-max-height/2;
+    }
+
+    .dashboard {
+        top: @body-max-height - @dashboard-height;
+    }
+}
