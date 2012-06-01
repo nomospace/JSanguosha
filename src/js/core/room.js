@@ -1,7 +1,7 @@
 /**
  * 游戏界面模块(UI类)
- * User: jinlu.nomospace
- * Date: 12-5-14
+ * User: nomospace
+ * Date: 2012-5-14
  * Time: 下午5:56
  */
 define(function(require, exports, module) {

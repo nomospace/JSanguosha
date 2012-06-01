@@ -1,7 +1,7 @@
 /**
  * 游戏规则模块
- * @author: jinlu.nomospace
- * @date: 12-5-14
+ * @author: nomospace
+ * @date: 2012-5-14
  */
 define(function(require, exports, module) {
     var Class = require('class'),

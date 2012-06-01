@@ -1,9 +1,6 @@
 ﻿*.iml
-.idea/
 .ipr
 .iws
-*~
-~*
 *.diff
 *.patch
 *.bak
@@ -15,4 +12,5 @@ Thumbs.db
 *.swp
 *.pyc
 *.pyo
+.idea/
 node_modules

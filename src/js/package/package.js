@@ -1,7 +1,7 @@
 /**
  * 游戏包模块
- * @author: jinlu.nomospace
- * @date: 12-5-10
+ * @author: nomospace
+ * @date: 2012-5-10
  */
 define(function(require, exports, module) {
     var Class = require('class');
