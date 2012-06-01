@@ -1,4 +1,4 @@
-﻿*.iml
+*.iml
 .ipr
 .iws
 *.diff
@@ -14,3 +14,4 @@ Thumbs.db
 *.pyo
 .idea/
 node_modules
+JSanguosha.iml
