@@ -39,17 +39,22 @@ export class Game {
     // 初始化技能系统
     this.skills = new SkillSystem(this);
     
-    // 初始化渲染器
+    // 初始化渲染器并缓存元素
     this.renderer = new Renderer(this);
+    this.renderer.cacheElements();
     
-    // 显示初始界面（不创建玩家）
+    // 显示初始界面
     this.renderer.updateUI(this);
     this.renderer.showBuildTimestamp();
-    this.initTooltipEvents();
     
     // 显示欢迎信息
     this.renderer.addLog('🎮 欢迎来到三国杀 Mini！', 'system');
-    this.renderer.addLog('点击"开始游戏"随机选择武将开始对战', 'system');
+    this.renderer.addLog('点击"开始游戏"开始对战', 'system');
+    
+    // 检查是否显示新手引导
+    if (this.renderer.shouldShowGuide()) {
+      setTimeout(() => this.renderer.showGuide(), 500);
+    }
   }
 
   createPlayers() {
@@ -97,12 +102,22 @@ export class Game {
 
   // ========== 游戏流程 ==========
 
-  startGame() {
-    if (this.gameState === 'playing') {
-      this.resetGame();
-      return;
+  confirmRestart() {
+    if (this.gameState === 'playing' || this.gameState === 'paused') {
+      this.renderer.showConfirm('确定要重新开始吗？', '当前游戏进度将丢失', () => {
+        this.doStartGame();
+      });
+      this.renderer.elements.confirmBtn.onclick = () => this.renderer.confirmAction();
+    } else {
+      this.doStartGame();
     }
-    
+  }
+
+  cancelConfirm() {
+    this.renderer.cancelConfirm();
+  }
+
+  doStartGame() {
     // 重新初始化牌堆
     this.deck = new Deck();
     
@@ -136,10 +151,15 @@ export class Game {
     setTimeout(() => this.startTurn(), 500);
   }
 
+  startGame() {
+    this.doStartGame();
+  }
+
   resetGame() {
     this.stopPlayQueue();
     this.gameState = 'waiting';
     this.renderer.clearLog();
+    this.renderer.setPhase('');
     this.init();
   }
 
@@ -154,8 +174,10 @@ export class Game {
     
     if (this.isPaused) {
       this.stopPlayQueue();
+      this.renderer.showPauseOverlay();
       this.renderer.addLog('⏸️ 游戏暂停', 'system');
     } else {
+      this.renderer.hidePauseOverlay();
       this.renderer.addLog('▶️ 游戏继续', 'system');
       this.continueTurn();
     }
@@ -192,6 +214,7 @@ export class Game {
   }
 
   preparePhase(player) {
+    this.renderer.setPhase('prepare');
     this.renderer.addLog('🌅 准备阶段', 'phase');
     
     // 检查技能触发
@@ -239,6 +262,7 @@ export class Game {
   }
 
   drawPhase(player) {
+    this.renderer.setPhase('draw');
     this.renderer.addLog('📦 摸牌阶段', 'phase');
     
     // 检查兵粮寸断
@@ -270,6 +294,7 @@ export class Game {
   }
 
   playPhase(player) {
+    this.renderer.setPhase('play');
     this.renderer.addLog('🎯 出牌阶段', 'phase');
     
     // 检查乐不思蜀
@@ -668,6 +693,7 @@ export class Game {
   }
 
   discardPhase(player) {
+    this.renderer.setPhase('discard');
     this.renderer.addLog('🗑️ 弃牌阶段', 'phase');
     
     const maxCards = player.getMaxCards();
@@ -695,6 +721,8 @@ export class Game {
   }
 
   endPhase(player) {
+    this.renderer.setPhase('end');
+    
     // 貂蝉闭月
     if (player.character.key === 'diaochan' && player.isAlive) {
       const cards = this.deck.drawMultiple(1);
@@ -837,5 +865,30 @@ export class Game {
       }
     }
     return null;
+  }
+
+  // 新增 UI 方法
+  filterAllHands(type, element) {
+    this.renderer.filterAllHands(type, element);
+  }
+
+  showSkillModal(characterKey) {
+    this.renderer.showSkillModal(characterKey);
+  }
+
+  closeModal(event) {
+    this.renderer.closeModal(event);
+  }
+
+  showCardModal(cardKey, event) {
+    this.renderer.showCardModal(cardKey, event);
+  }
+
+  nextGuide() {
+    this.renderer.nextGuide();
+  }
+
+  skipGuide() {
+    this.renderer.skipGuide();
   }
 }

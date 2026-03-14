@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#1a1a2e">
   <title>三国杀 Mini</title>
   <style>
@@ -11,6 +10,7 @@
       --bg-primary: #0d0d1a;
       --bg-secondary: #1a1a2e;
       --bg-card: #252542;
+      --bg-active: #2d2d4a;
       --border: #3d3d5c;
       --primary: #f39c12;
       --danger: #e74c3c;
@@ -30,10 +30,7 @@
       height: 100%;
       overflow: hidden;
       background: var(--bg-primary);
-    }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
       color: var(--text);
       font-size: 14px;
     }
@@ -45,7 +42,29 @@
       background: linear-gradient(180deg, var(--bg-primary) 0%, #0a0a15 100%);
     }
     
-    /* 顶部导航 */
+    /* 暂停遮罩 */
+    .pause-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .pause-overlay.show {
+      display: flex;
+    }
+    
+    .pause-text {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    
+    /* 顶部 */
     .header {
       background: var(--bg-secondary);
       padding: 8px 12px;
@@ -71,28 +90,25 @@
     .header-right {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
     
     .deck-info {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       font-size: 11px;
     }
     
     .deck-stat {
       display: flex;
       align-items: center;
-      gap: 3px;
-      padding: 3px 8px;
+      gap: 2px;
+      padding: 2px 6px;
       background: var(--bg-card);
       border-radius: 4px;
     }
     
-    .deck-stat strong {
-      color: var(--primary);
-      font-size: 12px;
-    }
+    .deck-stat strong { color: var(--primary); font-size: 12px; }
     
     .status-badge {
       padding: 4px 10px;
@@ -107,15 +123,17 @@
     .status-ended { background: var(--danger); color: #fff; }
     
     .settings-btn {
-      width: 28px;
-      height: 28px;
+      width: 28px; height: 28px;
       border-radius: 6px;
       background: var(--bg-card);
       border: 1px solid var(--border);
       color: var(--text);
       cursor: pointer;
       font-size: 14px;
+      transition: transform 0.1s;
     }
+    
+    .settings-btn:hover { transform: scale(1.1); }
     
     /* 主内容 */
     .main {
@@ -127,20 +145,44 @@
       overflow: hidden;
     }
     
-    /* 回合信息 */
+    /* 回合信息栏 */
     .turn-bar {
       background: var(--bg-secondary);
-      padding: 6px 12px;
+      padding: 8px 12px;
       border-radius: 8px;
-      font-size: 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
     
     .turn-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .turn-number {
+      font-size: 14px;
+      font-weight: 700;
       color: var(--primary);
+    }
+    
+    .phase-tag {
+      font-size: 11px;
+      padding: 3px 8px;
+      background: var(--primary);
+      color: #000;
+      border-radius: 4px;
       font-weight: 600;
+    }
+    
+    .phase-tag.discard {
+      animation: pulse 1s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
     }
     
     /* 玩家区域 */
@@ -150,7 +192,6 @@
       grid-template-columns: repeat(2, 1fr);
       gap: 8px;
       overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
     }
     
     /* 玩家卡片 */
@@ -161,13 +202,14 @@
       border: 2px solid var(--border);
       transition: all 0.3s;
       position: relative;
-      opacity: 0.9;
+      opacity: 0.85;
     }
     
     .player-card.active {
+      background: var(--bg-active);
       border-color: var(--primary);
       opacity: 1;
-      box-shadow: 0 0 15px rgba(243, 156, 18, 0.3);
+      box-shadow: 0 0 20px rgba(243, 156, 18, 0.3);
     }
     
     .player-card.dying {
@@ -177,33 +219,38 @@
     
     @keyframes dying-blink {
       0%, 100% { box-shadow: 0 0 5px rgba(231, 76, 60, 0.5); }
-      50% { box-shadow: 0 0 20px rgba(231, 76, 60, 0.8); }
+      50% { box-shadow: 0 0 25px rgba(231, 76, 60, 0.9); }
     }
     
     .player-card.dead {
-      opacity: 0.4;
-      filter: grayscale(80%);
+      opacity: 0.3;
+      filter: grayscale(100%);
     }
     
     .player-header {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 6px;
+      gap: 10px;
+      margin-bottom: 8px;
     }
     
     .player-avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 8px;
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 700;
       color: #fff;
       flex-shrink: 0;
-      border: 2px solid;
+      border: 3px solid;
+      transition: transform 0.2s;
+    }
+    
+    .player-card.active .player-avatar {
+      transform: scale(1.1);
     }
     
     .kingdom-wei .player-avatar { background: var(--wei); border-color: var(--wei); }
@@ -211,26 +258,28 @@
     .kingdom-wu .player-avatar { background: var(--wu); border-color: var(--wu); }
     .kingdom-qun .player-avatar { background: var(--qun); border-color: var(--qun); }
     
-    .player-info {
-      flex: 1;
-      min-width: 0;
-    }
+    .player-info { flex: 1; min-width: 0; }
     
     .player-name-row {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 6px;
     }
     
     .player-name {
-      font-size: 13px;
+      font-size: 15px;
       font-weight: 700;
+      transition: font-size 0.2s;
+    }
+    
+    .player-card.active .player-name {
+      font-size: 17px;
     }
     
     .kingdom-tag {
       font-size: 9px;
-      padding: 1px 4px;
-      border-radius: 3px;
+      padding: 2px 6px;
+      border-radius: 4px;
       font-weight: 600;
     }
     
@@ -240,9 +289,14 @@
     .kingdom-qun .kingdom-tag { background: var(--qun); color: #000; }
     
     .player-skill {
-      font-size: 9px;
+      font-size: 10px;
       color: var(--primary);
-      margin-top: 1px;
+      margin-top: 2px;
+      cursor: pointer;
+    }
+    
+    .player-skill:hover {
+      text-decoration: underline;
     }
     
     .hand-badge {
@@ -251,158 +305,173 @@
       right: 6px;
       background: var(--primary);
       color: #000;
-      font-size: 9px;
-      padding: 2px 6px;
-      border-radius: 8px;
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 10px;
       font-weight: 700;
     }
     
-    /* 体力显示 */
+    /* 状态图标区 */
+    .status-area {
+      position: absolute;
+      top: 36px;
+      right: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    
+    .status-icon {
+      font-size: 16px;
+      line-height: 1;
+    }
+    
+    /* 体力 */
     .hp-display {
       display: flex;
       align-items: center;
       gap: 2px;
-      margin-bottom: 4px;
-      font-size: 13px;
+      margin-bottom: 6px;
+      font-size: 14px;
       font-weight: 600;
     }
     
-    .hp-number {
-      color: var(--danger);
-    }
-    
-    /* 状态图标 */
-    .status-icons {
-      display: flex;
-      gap: 3px;
-      margin-bottom: 4px;
-      min-height: 16px;
-    }
-    
-    .status-icon {
-      font-size: 10px;
-      padding: 1px 4px;
-      background: rgba(231, 76, 60, 0.2);
-      border-radius: 3px;
-      color: var(--danger);
-    }
+    .hp-number { color: var(--danger); }
     
     /* 装备栏 */
     .equipment-bar {
       display: flex;
       flex-wrap: wrap;
-      gap: 3px;
+      gap: 4px;
       margin-bottom: 6px;
-      min-height: 18px;
+      min-height: 20px;
     }
     
     .equip-tag {
-      font-size: 8px;
-      padding: 1px 4px;
+      font-size: 9px;
+      padding: 2px 6px;
       background: var(--bg-secondary);
-      border-radius: 3px;
+      border-radius: 4px;
       color: var(--text-muted);
+      border: 1px solid var(--border);
     }
     
     /* 手牌区 */
     .hand-section {
-      margin-top: 4px;
-    }
-    
-    .hand-tabs {
-      display: flex;
-      gap: 3px;
-      margin-bottom: 4px;
-    }
-    
-    .hand-tab {
-      font-size: 9px;
-      padding: 2px 6px;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 3px;
-      color: var(--text-muted);
-      cursor: pointer;
-    }
-    
-    .hand-tab.active {
-      background: var(--primary);
-      color: #000;
-      border-color: var(--primary);
+      margin-top: 6px;
     }
     
     .hand-cards {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      display: flex;
       gap: 4px;
+      overflow-x: auto;
+      padding: 4px 0;
+      scrollbar-width: thin;
+    }
+    
+    .hand-cards::-webkit-scrollbar {
+      height: 4px;
+    }
+    
+    .hand-cards::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
     }
     
     .mini-card {
-      aspect-ratio: 2.5/3.5;
-      border-radius: 4px;
+      min-width: 38px;
+      height: 52px;
+      border-radius: 6px;
       background: var(--card-color, var(--danger));
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      border: 1px solid rgba(255,255,255,0.2);
+      border: 2px solid rgba(255,255,255,0.2);
       cursor: pointer;
-      position: relative;
+      transition: all 0.15s;
+      flex-shrink: 0;
     }
     
     .mini-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      border-color: #fff;
+    }
+    
+    .mini-card.selected {
+      border-color: var(--primary);
+      box-shadow: 0 0 10px rgba(243, 156, 18, 0.5);
     }
     
     .mini-card.disabled {
-      opacity: 0.5;
+      opacity: 0.4;
+      filter: grayscale(50%);
+      cursor: not-allowed;
     }
     
     .mini-card-suit {
-      font-size: 14px;
+      font-size: 18px;
       color: #fff;
+      font-weight: 700;
     }
     
     .mini-card-name {
-      font-size: 8px;
+      font-size: 9px;
       color: #fff;
-      font-weight: 500;
+      font-weight: 600;
     }
     
     /* 快捷操作栏 */
     .quick-actions {
       display: flex;
-      gap: 4px;
-      margin-top: 6px;
-      padding-top: 6px;
+      gap: 6px;
+      margin-top: 8px;
+      padding-top: 8px;
       border-top: 1px solid var(--border);
     }
     
     .quick-btn {
       flex: 1;
-      padding: 6px 2px;
-      font-size: 9px;
+      padding: 8px 4px;
+      font-size: 11px;
       font-weight: 600;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 1px;
-      transition: transform 0.1s;
+      gap: 2px;
+      transition: all 0.15s;
     }
     
-    .quick-btn:active {
-      transform: scale(0.95);
-    }
+    .quick-btn:active { transform: scale(0.95); }
     
     .quick-btn.sha { background: var(--danger); color: #fff; }
     .quick-btn.tao { background: var(--success); color: #fff; }
     .quick-btn.discard { background: var(--text-muted); color: #fff; }
     .quick-btn.end { background: var(--bg-secondary); color: var(--text); border: 1px solid var(--border); }
-    .quick-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    
+    .quick-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .quick-btn.highlight {
+      animation: btn-pulse 0.8s ease-in-out infinite;
+    }
+    
+    @keyframes btn-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0.4); }
+      50% { box-shadow: 0 0 0 8px rgba(243, 156, 18, 0); }
+    }
+    
+    /* 非当前回合隐藏操作按钮 */
+    .player-card:not(.active) .quick-actions {
+      display: none;
+    }
     
     /* 底部面板 */
     .bottom-panel {
@@ -410,6 +479,32 @@
       flex-direction: column;
       gap: 6px;
       flex-shrink: 0;
+    }
+    
+    /* 全局手牌筛选 */
+    .global-filter {
+      display: flex;
+      gap: 6px;
+      background: var(--bg-secondary);
+      padding: 6px 10px;
+      border-radius: 8px;
+    }
+    
+    .filter-tab {
+      font-size: 11px;
+      padding: 4px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    
+    .filter-tab.active {
+      background: var(--primary);
+      color: #000;
+      border-color: var(--primary);
     }
     
     .control-bar {
@@ -428,31 +523,16 @@
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      transition: transform 0.1s;
+      transition: all 0.15s;
     }
     
-    .btn:active {
-      transform: scale(0.96);
-    }
+    .btn:active { transform: scale(0.96); }
     
-    .btn-primary {
-      background: var(--primary);
-      color: #000;
-    }
+    .btn-primary { background: var(--primary); color: #000; }
+    .btn-secondary { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+    .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
     
-    .btn-secondary {
-      background: var(--bg-card);
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-    
-    .btn-danger {
-      background: transparent;
-      color: var(--danger);
-      border: 1px solid var(--danger);
-    }
-    
-    /* 日志面板 */
+    /* 日志 */
     .log-panel {
       background: var(--bg-secondary);
       border-radius: 8px;
@@ -468,30 +548,35 @@
       cursor: pointer;
     }
     
-    .log-header:hover {
-      background: var(--bg-card);
-    }
-    
-    .log-toggle {
-      font-size: 10px;
-    }
+    .log-header:hover { background: var(--bg-card); }
     
     .log-content {
-      max-height: 60px;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s;
+    }
+    
+    .log-content.show {
+      max-height: 150px;
       overflow-y: auto;
+    }
+    
+    .log-content-inner {
       padding: 6px 10px;
       font-size: 10px;
       font-family: monospace;
-      transition: max-height 0.2s;
-    }
-    
-    .log-content.expanded {
-      max-height: 150px;
     }
     
     .log-entry {
-      padding: 1px 0;
+      padding: 2px 0;
       border-bottom: 1px solid rgba(255,255,255,0.05);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .log-entry:hover {
+      white-space: normal;
     }
     
     .log-system { color: var(--primary); }
@@ -502,40 +587,36 @@
     .log-skill { color: var(--primary); }
     .log-death { color: var(--danger); font-weight: 600; }
     
-    /* 卡牌详情弹窗 */
-    .card-modal-overlay {
+    /* 弹窗 */
+    .modal-overlay {
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.8);
-      z-index: 999;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 200;
       display: none;
+      align-items: center;
+      justify-content: center;
       opacity: 0;
       transition: opacity 0.2s;
     }
     
-    .card-modal-overlay.show {
+    .modal-overlay.show {
       display: flex;
-      align-items: center;
-      justify-content: center;
       opacity: 1;
     }
     
-    .card-modal {
+    .modal-box {
       background: var(--bg-card);
       border-radius: 12px;
       padding: 16px;
       max-width: 280px;
       width: 90%;
       position: relative;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
       transform: scale(0.9);
       transition: transform 0.2s;
     }
     
-    .card-modal-overlay.show .card-modal {
+    .modal-overlay.show .modal-box {
       transform: scale(1);
     }
     
@@ -543,17 +624,14 @@
       position: absolute;
       top: 8px;
       right: 8px;
-      width: 24px;
-      height: 24px;
+      width: 26px;
+      height: 26px;
       border: none;
       background: var(--bg-secondary);
       border-radius: 50%;
       color: var(--text);
       cursor: pointer;
       font-size: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
     
     .modal-close:hover {
@@ -561,33 +639,53 @@
       color: #fff;
     }
     
-    .modal-card-image {
+    .modal-image {
       width: 100%;
-      height: 160px;
+      height: 150px;
       object-fit: contain;
       background: var(--bg-secondary);
       border-radius: 8px;
       margin-bottom: 12px;
     }
     
-    .modal-card-name {
+    .modal-name {
       font-size: 18px;
       font-weight: 700;
       margin-bottom: 4px;
     }
     
-    .modal-card-suit {
+    .modal-suit {
       font-size: 12px;
       color: var(--text-muted);
       margin-bottom: 8px;
     }
     
-    .modal-card-desc {
-      font-size: 12px;
+    .modal-desc {
+      font-size: 13px;
       line-height: 1.6;
     }
     
-    /* 设置面板 */
+    /* 确认弹窗 */
+    .confirm-modal {
+      text-align: center;
+    }
+    
+    .confirm-modal h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+    }
+    
+    .confirm-btns {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    
+    .confirm-btns .btn {
+      padding: 8px 16px;
+    }
+    
+    /* 设置 */
     .settings-panel {
       position: fixed;
       top: 0;
@@ -596,50 +694,17 @@
       height: 100vh;
       background: var(--bg-secondary);
       border-left: 1px solid var(--border);
-      z-index: 100;
+      z-index: 150;
       transition: right 0.3s;
       padding: 16px;
     }
     
-    .settings-panel.open {
-      right: 0;
-    }
+    .settings-panel.open { right: 0; }
     
     .settings-title {
       font-size: 16px;
       font-weight: 700;
       margin-bottom: 16px;
-      color: var(--primary);
-    }
-    
-    .settings-group {
-      margin-bottom: 16px;
-    }
-    
-    .settings-label {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-bottom: 6px;
-    }
-    
-    .theme-options {
-      display: flex;
-      gap: 6px;
-    }
-    
-    .theme-btn {
-      flex: 1;
-      padding: 8px;
-      font-size: 10px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: var(--bg-card);
-      color: var(--text);
-      cursor: pointer;
-    }
-    
-    .theme-btn.active {
-      border-color: var(--primary);
       color: var(--primary);
     }
     
@@ -657,11 +722,64 @@
     }
     
     .settings-version {
-      margin-top: auto;
-      padding-top: 16px;
-      border-top: 1px solid var(--border);
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      right: 16px;
       font-size: 10px;
       color: var(--text-muted);
+    }
+    
+    /* 新手引导 */
+    .guide-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.9);
+      z-index: 300;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .guide-overlay.show {
+      display: flex;
+    }
+    
+    .guide-box {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 320px;
+      text-align: center;
+    }
+    
+    .guide-box h3 {
+      color: var(--primary);
+      margin-bottom: 12px;
+    }
+    
+    .guide-box p {
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    
+    .guide-step {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+    
+    .guide-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+    }
+    
+    .guide-dot.active {
+      background: var(--primary);
     }
     
     /* 底部 */
@@ -681,10 +799,6 @@
       
       .player-card {
         padding: 12px;
-      }
-      
-      .hand-cards {
-        grid-template-columns: repeat(4, 1fr);
       }
     }
     
@@ -712,6 +826,12 @@
 </head>
 <body>
   <div class="app">
+    <!-- 暂停遮罩 -->
+    <div class="pause-overlay" id="pause-overlay">
+      <span class="pause-text">⏸️ 已暂停</span>
+    </div>
+    
+    <!-- 顶部 -->
     <header class="header">
       <div class="logo">
         <span>🦞</span>
@@ -722,30 +842,49 @@
           <span class="deck-stat">📦<strong id="deck-remaining">0</strong></span>
           <span class="deck-stat">🗑️<strong id="discard-pile">0</strong></span>
         </div>
-        <span class="status-badge status-waiting" id="game-status">等待开始</span>
+        <span class="status-badge status-waiting" id="game-status">等待</span>
         <button class="settings-btn" onclick="game.toggleSettings()">⚙️</button>
       </div>
     </header>
     
+    <!-- 主内容 -->
     <main class="main">
-      <div class="players-grid" id="players-grid"></div>
-      
-      <aside class="bottom-panel">
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px;">
+        <!-- 回合信息栏 -->
         <div class="turn-bar">
-          <span class="turn-info" id="turn-display">准备开始</span>
+          <div class="turn-info">
+            <span class="turn-number" id="turn-display">准备开始</span>
+            <span class="phase-tag" id="phase-tag" style="display:none;"></span>
+          </div>
         </div>
         
+        <!-- 全局手牌筛选 -->
+        <div class="global-filter">
+          <span class="filter-tab active" onclick="game.filterAllHands('all', this)">全部</span>
+          <span class="filter-tab" onclick="game.filterAllHands('basic', this)">基本牌</span>
+          <span class="filter-tab" onclick="game.filterAllHands('scroll', this)">锦囊牌</span>
+          <span class="filter-tab" onclick="game.filterAllHands('equip', this)">装备牌</span>
+        </div>
+        
+        <!-- 玩家区域 -->
+        <div class="players-grid" id="players-grid"></div>
+      </div>
+      
+      <!-- 底部面板 -->
+      <aside class="bottom-panel">
         <div class="control-bar">
-          <button class="btn btn-primary" id="btn-start" onclick="game.startGame()">🎲 开始游戏</button>
+          <button class="btn btn-primary" id="btn-start" onclick="game.confirmRestart()">🎲 开始游戏</button>
           <button class="btn btn-secondary" id="btn-pause" onclick="game.togglePause()" style="display:none;">⏸️</button>
         </div>
         
         <div class="log-panel">
           <div class="log-header" onclick="game.toggleLog()">
-            <span>📜 游戏日志</span>
-            <span class="log-toggle" id="log-toggle">展开 ▼</span>
+            <span>📜 游戏日志 <span id="log-count" style="color:var(--primary)"></span></span>
+            <span id="log-toggle">展开 ▼</span>
           </div>
-          <div class="log-content" id="log-content"></div>
+          <div class="log-content" id="log-content">
+            <div class="log-content-inner" id="log-inner"></div>
+          </div>
         </div>
       </aside>
     </main>
@@ -754,13 +893,38 @@
   </div>
   
   <!-- 卡牌详情弹窗 -->
-  <div class="card-modal-overlay" id="card-modal-overlay" onclick="game.closeModal(event)">
-    <div class="card-modal" onclick="event.stopPropagation()">
+  <div class="modal-overlay" id="card-modal" onclick="game.closeModal(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
       <button class="modal-close" onclick="game.closeModal()">✕</button>
-      <img class="modal-card-image" id="modal-image" src="" alt="">
-      <div class="modal-card-name" id="modal-name"></div>
-      <div class="modal-card-suit" id="modal-suit"></div>
-      <div class="modal-card-desc" id="modal-desc"></div>
+      <img class="modal-image" id="modal-image" src="" alt="">
+      <div class="modal-name" id="modal-name"></div>
+      <div class="modal-suit" id="modal-suit"></div>
+      <div class="modal-desc" id="modal-desc"></div>
+    </div>
+  </div>
+  
+  <!-- 确认弹窗 -->
+  <div class="modal-overlay" id="confirm-modal">
+    <div class="modal-box confirm-modal">
+      <h3 id="confirm-title">确定要重新开始吗？</h3>
+      <p id="confirm-desc">当前游戏进度将丢失</p>
+      <div class="confirm-btns">
+        <button class="btn btn-secondary" onclick="game.cancelConfirm()">取消</button>
+        <button class="btn btn-primary" id="confirm-btn">确定</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 新手引导 -->
+  <div class="guide-overlay" id="guide-overlay">
+    <div class="guide-box">
+      <h3>🎮 欢迎来到三国杀 Mini</h3>
+      <div class="guide-step" id="guide-dots"></div>
+      <p id="guide-text"></p>
+      <div class="confirm-btns">
+        <button class="btn btn-secondary" onclick="game.skipGuide()">跳过</button>
+        <button class="btn btn-primary" id="guide-next-btn" onclick="game.nextGuide()">下一步</button>
+      </div>
     </div>
   </div>
   
@@ -768,16 +932,8 @@
   <div class="settings-panel" id="settings-panel">
     <button class="settings-close" onclick="game.toggleSettings()">✕</button>
     <div class="settings-title">⚙️ 设置</div>
-    <div class="settings-group">
-      <div class="settings-label">主题模式</div>
-      <div class="theme-options">
-        <button class="theme-btn active" onclick="game.setTheme('dark')">深色</button>
-        <button class="theme-btn" onclick="game.setTheme('light')">浅色</button>
-        <button class="theme-btn" onclick="game.setTheme('eye-care')">护眼</button>
-      </div>
-    </div>
     <div class="settings-version">
-      <p>v3.6.0 · 32武将 · 108卡牌</p>
+      <p>v3.7.0 · 32武将 · 108卡牌</p>
       <p id="build-timestamp"></p>
     </div>
   </div>
