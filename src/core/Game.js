@@ -750,4 +750,87 @@ export class Game {
       this.renderer.addLog('🏆 游戏结束！平局！', 'system');
     }
   }
+
+  // ========== UI 交互方法 ==========
+
+  toggleSettings() {
+    this.renderer.toggleSettings();
+  }
+
+  setTheme(theme) {
+    this.renderer.setTheme(theme);
+  }
+
+  toggleLog() {
+    this.renderer.toggleLog();
+  }
+
+  filterHand(type, element) {
+    this.renderer.filterHandCards(type);
+    
+    // 更新 Tab 状态
+    const tabs = element.parentElement.querySelectorAll('.hand-tab');
+    tabs.forEach(tab => tab.classList.remove('active'));
+    element.classList.add('active');
+    
+    // 刷新当前玩家的手牌显示
+    const currentPlayer = this.players[this.currentPlayerIndex];
+    if (currentPlayer) {
+      this.renderer.renderHandCards(currentPlayer, type);
+    }
+  }
+
+  // 快捷操作
+  quickPlay(cardKey) {
+    const player = this.players[this.currentPlayerIndex];
+    if (!player || this.gameState !== 'playing') return;
+    
+    const cardIndex = player.handCards.findIndex(c => c.key === cardKey);
+    if (cardIndex === -1) return;
+    
+    const card = player.handCards[cardIndex];
+    
+    if (cardKey === 'sha') {
+      const target = this.findValidTarget(player);
+      if (target) {
+        this.handleSha(player, target, card);
+      }
+    } else if (cardKey === 'tao') {
+      if (player.hp < player.maxHp) {
+        this.handleTao(player, player);
+      }
+    }
+  }
+
+  quickDiscard() {
+    const player = this.players[this.currentPlayerIndex];
+    if (!player || this.gameState !== 'playing') return;
+    
+    const maxCards = player.getMaxCards();
+    while (player.handCards.length > maxCards) {
+      const card = player.handCards.pop();
+      this.deck.discard(card);
+    }
+    
+    this.renderer.updatePlayer(player);
+    this.renderer.updateUI(this);
+    this.renderer.addLog('🧹 一键弃牌完成', 'normal');
+  }
+
+  quickEndTurn() {
+    if (this.gameState !== 'playing') return;
+    
+    this.stopPlayQueue();
+    const player = this.players[this.currentPlayerIndex];
+    this.discardPhase(player);
+  }
+
+  findValidTarget(source) {
+    for (const player of this.players) {
+      if (player !== source && player.isAlive && canAttack(source, player, this.players)) {
+        return player;
+      }
+    }
+    return null;
+  }
 }

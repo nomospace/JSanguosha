@@ -1,13 +1,15 @@
 /**
  * UI 渲染器 - 专业游戏界面
  */
-import { KINGDOM_COLORS, getCharacterAvatar } from '../config/characters';
+import { KINGDOM_COLORS } from '../config/characters';
 import { SUITS, CARD_TYPES, getCardPlaceholder } from '../config/cards';
 
 export class Renderer {
   constructor(game) {
     this.game = game;
     this.elements = {};
+    this.logExpanded = false;
+    this.currentHandTab = 'all';
     this.cacheElements();
   }
 
@@ -21,12 +23,14 @@ export class Renderer {
       btnStart: document.getElementById('btn-start'),
       btnPause: document.getElementById('btn-pause'),
       logContent: document.getElementById('log-content'),
+      logToggle: document.getElementById('log-toggle'),
       buildTimestamp: document.getElementById('build-timestamp'),
       cardTooltip: document.getElementById('card-tooltip'),
       tooltipImage: document.getElementById('tooltip-image'),
       tooltipName: document.getElementById('tooltip-name'),
       tooltipSuit: document.getElementById('tooltip-suit'),
-      tooltipDesc: document.getElementById('tooltip-desc')
+      tooltipDesc: document.getElementById('tooltip-desc'),
+      settingsPanel: document.getElementById('settings-panel')
     };
   }
 
@@ -42,13 +46,10 @@ export class Renderer {
 
   createPlayerCard(player) {
     const card = document.createElement('div');
-    card.className = `player-card ${player.isAlive ? '' : 'dead'}`;
+    card.className = `player-card`;
     card.id = `player-${player.index}`;
     
     const kingdom = KINGDOM_COLORS[player.character.kingdom];
-    const avatarUrl = getCharacterAvatar(player.character.key);
-    
-    // 用势力颜色作为头像背景
     const avatarColors = {
       wei: '#3498db',
       shu: '#2ecc71', 
@@ -60,9 +61,7 @@ export class Renderer {
     
     card.innerHTML = `
       <div class="player-header">
-        <div class="player-avatar" style="background: ${bgColor}">
-          ${initial}
-        </div>
+        <div class="player-avatar" style="background: ${bgColor}">${initial}</div>
         <div class="player-info">
           <div class="player-name-row">
             <span class="player-name">${player.character.name}</span>
@@ -72,17 +71,22 @@ export class Renderer {
         </div>
       </div>
       
-      <div class="hp-bar" id="hp-${player.index}">
-        ${this.renderHP(player.hp, player.maxHp)}
+      <div class="hp-display" id="hp-${player.index}">${this.renderHP(player.hp, player.maxHp)}</div>
+      
+      <div class="status-icons" id="status-${player.index}">${this.renderStatus(player)}</div>
+      
+      <div class="equipment-bar" id="equip-${player.index}">${this.renderEquipment(player)}</div>
+      
+      <div class="hand-section">
+        <div class="hand-tabs" id="tabs-${player.index}">${this.renderHandTabs()}</div>
+        <div class="hand-area">
+          <span class="hand-count" id="cards-${player.index}">📦 ${player.handCards?.length || 0}</span>
+          <div class="hand-cards" id="hand-${player.index}"></div>
+        </div>
       </div>
       
-      <div class="equipment-bar" id="equip-${player.index}">
-        ${this.renderEquipment(player)}
-      </div>
-      
-      <div class="hand-area">
-        <span class="hand-count" id="cards-${player.index}">📦 ${player.handCards?.length || 0}</span>
-        <div class="hand-cards" id="hand-${player.index}"></div>
+      <div class="quick-actions" id="actions-${player.index}">
+        ${this.renderQuickActions(player)}
       </div>
     `;
     
@@ -90,12 +94,26 @@ export class Renderer {
   }
 
   renderHP(current, max) {
-    let html = '';
-    for (let i = 0; i < max; i++) {
-      const cls = i < current ? 'hp-full' : 'hp-empty';
-      html += `<span class="hp-heart ${cls}">❤️</span>`;
+    return `<span class="hp-number">${current}</span><span class="hp-heart">❤️</span>`;
+  }
+
+  renderStatus(player) {
+    const icons = [];
+    
+    // 判定区的牌
+    if (player.judgeCards && player.judgeCards.length > 0) {
+      player.judgeCards.forEach(j => {
+        if (j.key === 'lebusishu') {
+          icons.push('<span class="status-icon">🎭乐</span>');
+        } else if (j.key === 'bingliang') {
+          icons.push('<span class="status-icon">🍚粮</span>');
+        } else if (j.key === 'shandian') {
+          icons.push('<span class="status-icon">⚡闪</span>');
+        }
+      });
     }
-    return html;
+    
+    return icons.join('');
   }
 
   renderEquipment(player) {
@@ -108,15 +126,48 @@ export class Renderer {
     return parts.join('');
   }
 
-  renderHandCards(player) {
+  renderHandTabs() {
+    return `
+      <span class="hand-tab active" data-tab="all" onclick="game.filterHand('all', this)">全部</span>
+      <span class="hand-tab" data-tab="basic" onclick="game.filterHand('basic', this)">基本牌</span>
+      <span class="hand-tab" data-tab="scroll" onclick="game.filterHand('scroll', this)">锦囊牌</span>
+      <span class="hand-tab" data-tab="equip" onclick="game.filterHand('equip', this)">装备牌</span>
+    `;
+  }
+
+  renderQuickActions(player) {
+    const hasSha = player.handCards?.some(c => c.key === 'sha');
+    const hasTao = player.handCards?.some(c => c.key === 'tao');
+    const canEnd = true;
+    
+    return `
+      <button class="quick-btn sha" onclick="game.quickPlay('sha')" ${hasSha ? '' : 'disabled'}>⚔️ 出杀</button>
+      <button class="quick-btn tao" onclick="game.quickPlay('tao')" ${hasTao ? '' : 'disabled'}>💖 出桃</button>
+      <button class="quick-btn discard" onclick="game.quickDiscard()">🧹 弃牌</button>
+      <button class="quick-btn end" onclick="game.quickEndTurn()">▶️ 结束</button>
+    `;
+  }
+
+  renderHandCards(player, filterType = 'all') {
     const container = document.getElementById(`hand-${player.index}`);
     if (!container || !player.handCards) return;
     
-    container.innerHTML = player.handCards.map((card, i) => {
+    let cards = player.handCards;
+    if (filterType !== 'all') {
+      if (filterType === 'equip') {
+        cards = cards.filter(c => ['weapon', 'armor', 'defense_horse', 'offense_horse'].includes(c.type));
+      } else {
+        cards = cards.filter(c => c.type === filterType);
+      }
+    }
+    
+    container.innerHTML = cards.map((card, i) => {
       const suit = SUITS[card.suit] || SUITS.spade;
+      const isDisabled = this.isCardDisabled(player, card);
       return `
-        <div class="mini-card" 
+        <div class="mini-card ${isDisabled ? 'disabled' : ''}" 
              style="--card-color:${card.color}"
+             data-card-key="${card.key}"
              onmouseenter="game.showCardTooltip('${card.key}', event)"
              onmouseleave="game.hideCardTooltip()">
           <span class="mini-card-suit">${suit.symbol}</span>
@@ -126,20 +177,34 @@ export class Renderer {
     }).join('');
   }
 
+  isCardDisabled(player, card) {
+    // 如果被乐不思蜀，不能使用锦囊牌
+    const hasLebu = player.judgeCards?.some(j => j.key === 'lebusishu');
+    if (hasLebu && card.type === 'scroll') {
+      return true;
+    }
+    return false;
+  }
+
   updatePlayer(player) {
     const hpEl = document.getElementById(`hp-${player.index}`);
     const cardsEl = document.getElementById(`cards-${player.index}`);
     const equipEl = document.getElementById(`equip-${player.index}`);
+    const statusEl = document.getElementById(`status-${player.index}`);
+    const actionsEl = document.getElementById(`actions-${player.index}`);
     const cardEl = document.getElementById(`player-${player.index}`);
     
     if (hpEl) hpEl.innerHTML = this.renderHP(player.hp, player.maxHp);
     if (cardsEl) cardsEl.textContent = `📦 ${player.handCards?.length || 0}`;
     if (equipEl) equipEl.innerHTML = this.renderEquipment(player);
+    if (statusEl) statusEl.innerHTML = this.renderStatus(player);
+    if (actionsEl) actionsEl.innerHTML = this.renderQuickActions(player);
     
-    this.renderHandCards(player);
+    this.renderHandCards(player, this.currentHandTab);
     
     if (cardEl) {
       cardEl.classList.toggle('dead', !player.isAlive);
+      cardEl.classList.toggle('dying', player.hp === 1 && player.isAlive);
     }
   }
 
@@ -209,11 +274,11 @@ export class Renderer {
   }
 
   updateTooltipPosition(event) {
-    const x = event.clientX + 12;
-    const y = event.clientY + 12;
+    const x = event.clientX + 10;
+    const y = event.clientY + 10;
     const rect = this.elements.cardTooltip.getBoundingClientRect();
-    const maxX = window.innerWidth - rect.width - 12;
-    const maxY = window.innerHeight - rect.height - 12;
+    const maxX = window.innerWidth - rect.width - 10;
+    const maxY = window.innerHeight - rect.height - 10;
     
     this.elements.cardTooltip.style.left = Math.min(x, maxX) + 'px';
     this.elements.cardTooltip.style.top = Math.min(y, maxY) + 'px';
@@ -236,6 +301,16 @@ export class Renderer {
 
   clearLog() {
     this.elements.logContent.innerHTML = '';
+  }
+
+  toggleLog() {
+    this.logExpanded = !this.logExpanded;
+    this.elements.logContent.classList.toggle('expanded', this.logExpanded);
+    this.elements.logToggle.textContent = this.logExpanded ? '收起' : '展开';
+  }
+
+  filterHandCards(type) {
+    this.currentHandTab = type;
   }
 
   showBuildTimestamp() {
@@ -267,5 +342,28 @@ export class Renderer {
       btnStart.className = 'btn btn-primary';
       btnPause.style.display = 'none';
     }
+  }
+
+  toggleSettings() {
+    this.elements.settingsPanel.classList.toggle('open');
+  }
+
+  closeSettings() {
+    this.elements.settingsPanel.classList.remove('open');
+  }
+
+  setTheme(theme) {
+    document.body.classList.remove('light-mode', 'eye-care-mode');
+    
+    if (theme === 'light') {
+      document.body.classList.add('light-mode');
+    } else if (theme === 'eye-care') {
+      document.body.classList.add('eye-care-mode');
+    }
+    
+    // 更新按钮状态
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.theme === theme);
+    });
   }
 }
