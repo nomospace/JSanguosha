@@ -42,29 +42,29 @@ export class Game {
     // 初始化渲染器
     this.renderer = new Renderer(this);
     
-    // 创建玩家
-    this.createPlayers();
-    
-    // 渲染界面
-    this.renderer.renderPlayers(this.players);
+    // 显示初始界面（不创建玩家）
     this.renderer.updateUI(this);
     this.renderer.showBuildTimestamp();
     this.initTooltipEvents();
     
     // 显示欢迎信息
     this.renderer.addLog('🎮 欢迎来到三国杀 Mini！', 'system');
-    this.renderer.addLog('点击"开始游戏"开始对战', 'system');
+    this.renderer.addLog('点击"开始游戏"随机选择武将开始对战', 'system');
   }
 
   createPlayers() {
     this.players = [];
-    const shuffledCharacters = [...CHARACTERS].sort(() => Math.random() - 0.5);
     
-    for (let i = 0; i < this.playerCount; i++) {
-      const character = shuffledCharacters[i % shuffledCharacters.length];
+    // 真正随机选择 4 个不同的武将
+    const shuffled = [...CHARACTERS].sort(() => Math.random() - 0.5);
+    const selected = shuffled.slice(0, this.playerCount);
+    
+    selected.forEach((character, i) => {
       const player = new Player(i, character);
       this.players.push(player);
-    }
+    });
+    
+    return selected;
   }
 
   // ========== 工具方法 ==========

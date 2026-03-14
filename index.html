@@ -4,22 +4,27 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1a1a2e">
   <title>三国杀 Mini</title>
   <style>
     :root {
-      --bg-dark: #0f0f1a;
-      --bg-card: #1a1a2e;
-      --bg-panel: #16213e;
+      --bg-primary: #0d0d1a;
+      --bg-secondary: #1a1a2e;
+      --bg-card: #252542;
+      --bg-hover: #2d2d4a;
+      --border: #3d3d5c;
       --primary: #f39c12;
+      --primary-dark: #d68910;
       --danger: #e74c3c;
       --success: #2ecc71;
-      --wei: #3498db;
-      --shu: #2ecc71;
-      --wu: #e74c3c;
-      --qun: #f39c12;
+      --info: #3498db;
+      --wei: #5dade2;
+      --shu: #58d68d;
+      --wu: #ec7063;
+      --qun: #f4d03f;
       --text: #ecf0f1;
-      --text-muted: #95a5a6;
+      --text-secondary: #a6a6a6;
+      --shadow: 0 4px 20px rgba(0,0,0,0.4);
     }
     
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -27,91 +32,145 @@
     html, body {
       height: 100%;
       overflow: hidden;
+      background: var(--bg-primary);
     }
     
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-      background: var(--bg-dark);
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
       color: var(--text);
       font-size: 14px;
-      -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
     }
     
+    /* 主容器 */
     .app {
       display: flex;
       flex-direction: column;
       height: 100vh;
       max-width: 100vw;
+      background: linear-gradient(180deg, var(--bg-primary) 0%, #0a0a15 100%);
     }
     
-    /* 顶部栏 */
+    /* 顶部导航 */
     .header {
-      background: linear-gradient(180deg, var(--bg-panel) 0%, transparent 100%);
-      padding: 8px 12px;
+      background: var(--bg-secondary);
+      padding: 12px 16px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      border-bottom: 1px solid var(--border);
       flex-shrink: 0;
-      border-bottom: 1px solid rgba(243, 156, 18, 0.2);
     }
     
-    .header h1 {
-      font-size: 18px;
-      color: var(--primary);
+    .logo {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
     }
     
-    .header-info {
+    .logo h1 {
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--primary) 0%, #e67e22 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .header-stats {
       display: flex;
-      gap: 12px;
-      font-size: 12px;
+      gap: 16px;
+      font-size: 13px;
+    }
+    
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .stat-value {
+      font-weight: 600;
+      color: var(--primary);
     }
     
     .status-badge {
-      padding: 4px 10px;
-      border-radius: 12px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
       font-weight: 600;
-      font-size: 11px;
+      text-transform: uppercase;
     }
     
-    .status-waiting { background: var(--success); }
-    .status-playing { background: var(--success); }
-    .status-paused { background: var(--primary); }
-    .status-ended { background: var(--danger); }
+    .status-waiting { background: var(--info); color: #fff; }
+    .status-playing { background: var(--success); color: #fff; }
+    .status-paused { background: var(--primary); color: #000; }
+    .status-ended { background: var(--danger); color: #fff; }
     
-    /* 主区域 */
+    /* 主内容区 */
     .main {
       flex: 1;
       display: flex;
       flex-direction: column;
+      padding: 12px;
+      gap: 12px;
       overflow: hidden;
-      padding: 8px;
-      gap: 8px;
     }
     
     /* 玩家区域 */
+    .players-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+    }
+    
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 0 4px;
+    }
+    
     .players-grid {
       flex: 1;
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
+      gap: 12px;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
     }
     
+    /* 玩家卡片 */
     .player-card {
       background: var(--bg-card);
-      border-radius: 12px;
-      padding: 10px;
+      border-radius: 16px;
+      padding: 14px;
       border: 2px solid transparent;
-      transition: all 0.2s;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .player-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--kingdom-color, var(--border));
     }
     
     .player-card.active {
       border-color: var(--primary);
-      box-shadow: 0 0 15px rgba(243, 156, 18, 0.3);
+      box-shadow: var(--shadow), 0 0 30px rgba(243, 156, 18, 0.2);
+    }
+    
+    .player-card.active::before {
+      background: var(--primary);
     }
     
     .player-card.dead {
@@ -122,31 +181,22 @@
     .player-header {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 6px;
-    }
-    
-    .player-avatar-wrap {
-      position: relative;
-      flex-shrink: 0;
+      gap: 12px;
+      margin-bottom: 12px;
     }
     
     .player-avatar {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      background: var(--bg-panel);
-    }
-    
-    .player-kingdom {
-      position: absolute;
-      bottom: -2px;
-      right: -2px;
-      font-size: 9px;
-      padding: 1px 4px;
-      border-radius: 4px;
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: var(--bg-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 700;
       color: #fff;
-      font-weight: bold;
+      flex-shrink: 0;
     }
     
     .player-info {
@@ -154,197 +204,236 @@
       min-width: 0;
     }
     
-    .player-name {
-      font-size: 14px;
-      font-weight: 600;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    
-    .kingdom-wei { color: var(--wei); }
-    .kingdom-shu { color: var(--shu); }
-    .kingdom-wu { color: var(--wu); }
-    .kingdom-qun { color: var(--qun); }
-    
-    .player-skill-name {
-      font-size: 10px;
-      color: var(--primary);
-      opacity: 0.8;
-    }
-    
-    .player-hp {
-      margin: 6px 0;
-    }
-    
-    .hp-display {
+    .player-name-row {
       display: flex;
-      flex-wrap: wrap;
-      gap: 2px;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 2px;
+    }
+    
+    .player-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    
+    .kingdom-badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    
+    .kingdom-wei { color: var(--wei); border: 1px solid var(--wei); }
+    .kingdom-shu { color: var(--shu); border: 1px solid var(--shu); }
+    .kingdom-wu { color: var(--wu); border: 1px solid var(--wu); }
+    .kingdom-qun { color: var(--qun); border: 1px solid var(--qun); }
+    
+    .player-skill {
+      font-size: 11px;
+      color: var(--primary);
+      margin-top: 2px;
+    }
+    
+    /* 体力条 */
+    .hp-bar {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 10px;
     }
     
     .hp-heart {
-      font-size: 14px;
+      font-size: 18px;
       line-height: 1;
     }
     
-    .player-equip {
+    .hp-full { opacity: 1; }
+    .hp-empty { opacity: 0.3; }
+    
+    /* 装备栏 */
+    .equipment-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+      min-height: 22px;
+    }
+    
+    .equip-tag {
       font-size: 10px;
-      color: var(--text-muted);
-      margin-bottom: 4px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      padding: 2px 6px;
+      background: var(--bg-secondary);
+      border-radius: 4px;
+      color: var(--text-secondary);
     }
     
-    .eq-item {
-      margin-right: 4px;
+    .equip-tag.weapon { color: #e74c3c; }
+    .equip-tag.armor { color: #3498db; }
+    .equip-tag.horse { color: #9b59b6; }
+    
+    /* 手牌区 */
+    .hand-area {
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
     
-    .player-hand-info {
-      font-size: 11px;
-      color: var(--text-muted);
+    .hand-count {
+      font-size: 12px;
+      color: var(--text-secondary);
+      flex-shrink: 0;
     }
     
     .hand-cards {
       display: flex;
-      flex-wrap: wrap;
       gap: 3px;
-      margin-top: 6px;
+      overflow-x: auto;
+      flex: 1;
+      padding: 2px 0;
     }
     
     .mini-card {
-      width: 32px;
-      height: 44px;
-      border-radius: 4px;
+      width: 36px;
+      height: 50px;
+      border-radius: 6px;
       background: var(--card-color, var(--danger));
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      border: 1px solid rgba(255,255,255,0.3);
       flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.2);
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    
+    .mini-card:hover {
+      transform: translateY(-4px);
     }
     
     .mini-card-suit {
-      font-size: 14px;
+      font-size: 16px;
       color: #fff;
       line-height: 1;
     }
     
     .mini-card-name {
-      font-size: 8px;
+      font-size: 9px;
       color: #fff;
-      white-space: nowrap;
-      overflow: hidden;
-      max-width: 100%;
-      padding: 0 2px;
+      font-weight: 500;
     }
     
-    /* 控制面板 */
-    .control-panel {
-      background: var(--bg-panel);
-      border-radius: 12px;
-      padding: 10px;
+    /* 底部面板 */
+    .bottom-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
       flex-shrink: 0;
     }
     
-    .control-buttons {
+    /* 控制栏 */
+    .control-bar {
+      background: var(--bg-secondary);
+      border-radius: 16px;
+      padding: 14px;
       display: flex;
-      gap: 8px;
-      margin-bottom: 8px;
+      gap: 12px;
+      align-items: center;
     }
     
     .btn {
       flex: 1;
-      padding: 10px 12px;
-      font-size: 13px;
+      padding: 12px 16px;
+      font-size: 14px;
       font-weight: 600;
       border: none;
-      border-radius: 8px;
+      border-radius: 12px;
       cursor: pointer;
-      transition: transform 0.1s;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
     }
     
     .btn:active {
-      transform: scale(0.95);
+      transform: scale(0.96);
     }
     
     .btn-primary {
-      background: var(--primary);
-      color: #fff;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: #000;
     }
     
     .btn-secondary {
-      background: #e67e22;
-      color: #fff;
+      background: var(--bg-card);
+      color: var(--text);
+      border: 1px solid var(--border);
     }
     
     .btn-danger {
-      background: var(--text-muted);
-      color: #fff;
-    }
-    
-    .deck-info {
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-    
-    /* 日志区域 */
-    .log-panel {
       background: var(--bg-card);
-      border-radius: 12px;
-      flex-shrink: 0;
-      height: 120px;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+    
+    /* 日志面板 */
+    .log-panel {
+      background: var(--bg-secondary);
+      border-radius: 16px;
+      height: 140px;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
     
     .log-header {
-      padding: 6px 10px;
+      padding: 10px 14px;
       font-size: 12px;
-      color: var(--primary);
       font-weight: 600;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     
     .log-content {
       flex: 1;
       overflow-y: auto;
-      padding: 6px 10px;
-      font-size: 11px;
+      padding: 10px 14px;
+      font-size: 12px;
+      font-family: 'Monaco', 'Menlo', monospace;
       -webkit-overflow-scrolling: touch;
     }
     
     .log-entry {
-      padding: 2px 0;
+      padding: 3px 0;
       border-bottom: 1px solid rgba(255,255,255,0.05);
       line-height: 1.4;
     }
     
     .log-system { color: var(--primary); }
-    .log-turn { color: var(--danger); }
-    .log-phase { color: var(--wei); }
+    .log-turn { color: var(--danger); font-weight: 600; }
+    .log-phase { color: var(--info); }
     .log-draw { color: var(--success); }
     .log-play { color: #9b59b6; }
-    .log-skill { color: #e67e22; }
+    .log-skill { color: var(--primary); font-weight: 500; }
     .log-heal { color: var(--success); }
-    .log-death { color: var(--text-muted); }
+    .log-death { color: var(--danger); font-weight: 600; }
     
     /* 卡牌提示 */
     .card-tooltip {
       position: fixed;
-      background: var(--bg-dark);
+      background: var(--bg-card);
       border: 2px solid var(--primary);
-      border-radius: 12px;
-      padding: 12px;
-      max-width: 240px;
+      border-radius: 16px;
+      padding: 16px;
+      max-width: 260px;
       z-index: 1000;
       pointer-events: none;
       display: none;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      box-shadow: var(--shadow);
     }
     
     .card-tooltip.show {
@@ -353,144 +442,149 @@
     
     .card-tooltip-image {
       width: 100%;
-      height: 140px;
+      height: 160px;
       object-fit: contain;
-      background: var(--bg-card);
-      border-radius: 6px;
-      margin-bottom: 8px;
+      background: var(--bg-secondary);
+      border-radius: 10px;
+      margin-bottom: 12px;
     }
     
     .card-tooltip-name {
-      font-size: 15px;
-      font-weight: 600;
+      font-size: 18px;
+      font-weight: 700;
       margin-bottom: 4px;
     }
     
     .card-tooltip-suit {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-bottom: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
     }
     
     .card-tooltip-desc {
-      font-size: 11px;
-      line-height: 1.5;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--text);
     }
     
     /* 底部信息 */
     .footer {
       text-align: center;
-      padding: 6px;
-      font-size: 10px;
-      color: var(--text-muted);
+      padding: 8px;
+      font-size: 11px;
+      color: var(--text-secondary);
       flex-shrink: 0;
     }
     
-    /* 响应式 - 平板 */
+    /* 响应式 */
     @media (min-width: 600px) {
       .players-grid {
         grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
       }
       
       .player-card {
-        padding: 12px;
-      }
-      
-      .player-avatar {
-        width: 44px;
-        height: 44px;
-      }
-      
-      .mini-card {
-        width: 36px;
-        height: 50px;
+        padding: 16px;
       }
       
       .log-panel {
-        height: 150px;
+        height: 160px;
       }
     }
     
-    /* 响应式 - 桌面 */
     @media (min-width: 900px) {
       .app {
-        max-width: 1000px;
+        max-width: 1200px;
         margin: 0 auto;
       }
       
       .main {
         flex-direction: row;
-        padding: 12px;
-        gap: 12px;
+        padding: 16px;
+        gap: 16px;
       }
       
-      .players-wrap {
+      .players-section {
         flex: 1;
-        display: flex;
-        flex-direction: column;
       }
       
-      .players-grid {
-        flex: 1;
-        grid-template-columns: repeat(2, 1fr);
-      }
-      
-      .side-panel {
-        width: 300px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
+      .bottom-panel {
+        width: 340px;
+        flex-shrink: 0;
       }
       
       .log-panel {
-        height: 200px;
+        flex: 1;
+        height: auto;
       }
+    }
+    
+    /* 动画 */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    
+    .player-card.active {
+      animation: pulse 2s ease-in-out infinite;
     }
   </style>
 </head>
 <body>
   <div class="app">
-    <!-- 顶部栏 -->
+    <!-- 顶部导航 -->
     <header class="header">
-      <h1>🦞 三国杀 Mini</h1>
-      <div class="header-info">
-        <span id="turn-display">准备开始</span>
+      <div class="logo">
+        <span style="font-size:24px">🦞</span>
+        <h1>三国杀 Mini</h1>
+      </div>
+      <div class="header-stats">
+        <div class="stat-item">
+          <span>📦</span>
+          <span class="stat-value" id="deck-remaining">0</span>
+        </div>
+        <div class="stat-item">
+          <span>🗑️</span>
+          <span class="stat-value" id="discard-pile">0</span>
+        </div>
         <span class="status-badge status-waiting" id="game-status">等待开始</span>
-        <span id="deck-count">牌堆:0</span>
-        <span id="discard-count">弃牌:0</span>
       </div>
     </header>
     
-    <!-- 主区域 -->
+    <!-- 主内容 -->
     <main class="main">
-      <div class="players-wrap">
+      <!-- 玩家区域 -->
+      <section class="players-section">
+        <div class="section-title">⚔️ 对战区域</div>
         <div class="players-grid" id="players-grid"></div>
-      </div>
+      </section>
       
-      <div class="side-panel">
-        <!-- 控制面板 -->
-        <div class="control-panel">
-          <div class="control-buttons">
-            <button class="btn btn-primary" id="btn-start" onclick="game.startGame()">🎲 开始</button>
-            <button class="btn btn-secondary" id="btn-pause" onclick="game.togglePause()" style="display:none;">⏸️ 暂停</button>
-          </div>
-          <div class="deck-info">
-            <span>📦 剩余: <strong id="deck-remaining">0</strong></span>
-            <span>🗑️ 弃牌: <strong id="discard-pile">0</strong></span>
-          </div>
+      <!-- 底部面板 -->
+      <aside class="bottom-panel">
+        <!-- 控制栏 -->
+        <div class="control-bar">
+          <button class="btn btn-primary" id="btn-start" onclick="game.startGame()">
+            🎲 开始游戏
+          </button>
+          <button class="btn btn-secondary" id="btn-pause" onclick="game.togglePause()" style="display:none;">
+            ⏸️ 暂停
+          </button>
         </div>
         
-        <!-- 日志 -->
+        <!-- 日志面板 -->
         <div class="log-panel">
-          <div class="log-header">📜 游戏日志</div>
+          <div class="log-header">
+            <span>📜 游戏日志</span>
+            <span id="turn-display">准备开始</span>
+          </div>
           <div class="log-content" id="log-content"></div>
         </div>
-      </div>
+      </aside>
     </main>
     
     <!-- 底部 -->
     <footer class="footer">
-      <span>v3.3.0 · 32 武将 · 108 卡牌 · </span>
+      <span>v3.4.0 · 32武将 · 108卡牌 · </span>
       <span id="build-timestamp"></span>
     </footer>
   </div>
