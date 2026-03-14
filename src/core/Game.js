@@ -767,17 +767,22 @@ export class Game {
 
   filterHand(type, element) {
     this.renderer.filterHandCards(type);
-    
-    // 更新 Tab 状态
     const tabs = element.parentElement.querySelectorAll('.hand-tab');
     tabs.forEach(tab => tab.classList.remove('active'));
     element.classList.add('active');
-    
-    // 刷新当前玩家的手牌显示
     const currentPlayer = this.players[this.currentPlayerIndex];
     if (currentPlayer) {
       this.renderer.renderHandCards(currentPlayer, type);
     }
+  }
+
+  // 弹窗
+  showCardModal(cardKey, event) {
+    this.renderer.showCardModal(cardKey, event);
+  }
+
+  closeModal(event) {
+    this.renderer.closeModal(event);
   }
 
   // 快捷操作
