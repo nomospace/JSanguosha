@@ -102,7 +102,18 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
+    // 创建默认头像（使用 DiceBear API）
+    this.createDefaultAvatar();
+    
     // 资源加载完成，进入主菜单
     this.scene.start('MenuScene');
+  }
+
+  createDefaultAvatar() {
+    // 创建一个默认的头像纹理（白色圆形）
+    const graphics = this.make.graphics({ x: 0, y: 0, add: false });
+    graphics.fillStyle(0xffffff, 1);
+    graphics.fillCircle(60, 60, 55);
+    graphics.generateTexture('avatar_default', 120, 120);
   }
 }

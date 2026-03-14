@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
 import { MenuScene } from './scenes/MenuScene';
 import { GameScene } from './scenes/GameScene';
+import { CHARACTERS, KINGDOM_COLORS } from './config/characters';
+import { CARDS, SUITS, CARD_TYPES } from './config/cards';
 
 // 游戏配置
 const config = {

@@ -1,34 +1,6 @@
 import Phaser from 'phaser';
-
-// 武将数据库
-const CHARACTERS = [
-  { key: 'caocao', name: '曹操', kingdom: 'wei', hp: 4, skill: '奸雄' },
-  { key: 'liubei', name: '刘备', kingdom: 'shu', hp: 4, skill: '仁德' },
-  { key: 'sunquan', name: '孙权', kingdom: 'wu', hp: 4, skill: '制衡' },
-  { key: 'zhugeliang', name: '诸葛亮', kingdom: 'shu', hp: 3, skill: '观星' },
-  { key: 'simayi', name: '司马懿', kingdom: 'wei', hp: 3, skill: '反馈' },
-  { key: 'xiahoudun', name: '夏侯惇', kingdom: 'wei', hp: 4, skill: '刚烈' },
-  { key: 'guanYu', name: '关羽', kingdom: 'shu', hp: 4, skill: '武圣' },
-  { key: 'zhangfei', name: '张飞', kingdom: 'shu', hp: 4, skill: '咆哮' },
-  { key: 'zhaoyun', name: '赵云', kingdom: 'shu', hp: 4, skill: '龙胆' },
-  { key: 'zhouyu', name: '周瑜', kingdom: 'wu', hp: 3, skill: '反间' },
-  { key: 'luxun', name: '陆逊', kingdom: 'wu', hp: 3, skill: '连营' },
-  { key: 'diaochan', name: '貂蝉', kingdom: 'qun', hp: 3, skill: '闭月' },
-  { key: 'lvbu', name: '吕布', kingdom: 'qun', hp: 5, skill: '无双' },
-  { key: 'huatuo', name: '华佗', kingdom: 'qun', hp: 3, skill: '急救' }
-];
-
-// 卡牌数据
-const CARDS = {
-  sha: { name: '杀', type: 'basic', count: 30, color: 0xe74c3c },
-  shan: { name: '闪', type: 'basic', count: 15, color: 0x3498db },
-  tao: { name: '桃', type: 'basic', count: 8, color: 0x2ecc71 },
-  ji: { name: '酒', type: 'basic', count: 5, color: 0x9b59b6 },
-  wuzhong: { name: '无中生有', type: 'scroll', count: 4, color: 0xf39c12 },
-  juedou: { name: '决斗', type: 'scroll', count: 3, color: 0xe67e22 },
-  shunshou: { name: '顺手牵羊', type: 'scroll', count: 5, color: 0x1abc9c },
-  guoheshuang: { name: '过河拆桥', type: 'scroll', count: 3, color: 0x34495e }
-};
+import { CHARACTERS, KINGDOM_COLORS } from '../config/characters';
+import { CARDS, SUITS, CARD_TYPES } from '../config/cards';
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -42,8 +14,9 @@ export class GameScene extends Phaser.Scene {
     this.discardPile = [];
     this.currentPlayerIndex = 0;
     this.turnCount = 0;
-    this.gameState = 'waiting';
+    this.gameState = 'waiting'; // waiting, playing, paused, ended
     this.selectedCard = null;
+    this.isPaused = false;
   }
 
   create() {
@@ -54,6 +27,7 @@ export class GameScene extends Phaser.Scene {
 
     // ========== UI 层 ==========
     this.createUI(width, height);
+    this.createControlButtons(width, height);
 
     // ========== 初始化游戏 ==========
     this.initGame();
@@ -66,7 +40,7 @@ export class GameScene extends Phaser.Scene {
 
     // ========== 游戏日志 ==========
     this.logSystem = this.createLogSystem();
-    this.log('🎮 欢迎来到微杀杀 Online！', 'system');
+    this.log('🎮 欢迎来到 JSanguosha！', 'system');
     this.log('点击"开始游戏"按钮开始对战', 'system');
   }
 
@@ -88,40 +62,132 @@ export class GameScene extends Phaser.Scene {
     const infoBar = this.add.rectangle(width / 2, 40, width, 60, 0x000000, 0.5);
     infoBar.setOrigin(0.5);
 
-    // 回合显示
-    this.turnText = this.add.text(100, 40, '准备开始', {
-      font: 'bold 24px Microsoft YaHei',
+    // 游戏标题
+    this.titleText = this.add.text(20, 40, '🦞 JSanguosha', {
+      font: 'bold 28px Microsoft YaHei',
       color: '#f39c12'
     }).setOrigin(0, 0.5);
 
+    // 回合显示
+    this.turnText = this.add.text(250, 40, '准备开始', {
+      font: 'bold 22px Microsoft YaHei',
+      color: '#ffffff'
+    }).setOrigin(0, 0.5);
+
     // 牌堆信息
-    this.deckText = this.add.text(width - 100, 40, '牌堆：0', {
+    this.deckText = this.add.text(width - 300, 40, '牌堆：0', {
       font: '20px Microsoft YaHei',
       color: '#ffffff'
     }).setOrigin(1, 0.5);
 
+    // 弃牌堆信息
+    this.discardText = this.add.text(width - 150, 40, '弃牌：0', {
+      font: '20px Microsoft YaHei',
+      color: '#95a5a6'
+    }).setOrigin(1, 0.5);
+
+    // 游戏状态显示
+    this.statusText = this.add.text(width / 2, 80, '等待开始', {
+      font: 'bold 20px Microsoft YaHei',
+      color: '#2ecc71',
+      backgroundColor: '#00000080',
+      padding: { x: 15, y: 8 }
+    }).setOrigin(0.5);
+  }
+
+  createControlButtons(width, height) {
+    const buttonY = height - 40;
+    const buttonSpacing = 180;
+    const startX = width / 2 - buttonSpacing;
+
     // 开始游戏按钮
-    const startBtn = this.add.rectangle(width / 2, height - 50, 200, 60, 0xf39c12)
-      .setInteractive({ useHandCursor: true });
-    
-    const startText = this.add.text(width / 2, height - 50, '🎲 开始游戏', {
-      font: 'bold 24px Microsoft YaHei',
-      color: '#ffffff'
+    this.startButton = this.createButton(
+      startX,
+      buttonY,
+      '🎲 开始游戏',
+      0xf39c12,
+      () => this.startGame()
+    );
+
+    // 暂停/继续按钮
+    this.pauseButton = this.createButton(
+      startX + buttonSpacing,
+      buttonY,
+      '⏸️ 暂停',
+      0xe67e22,
+      () => this.togglePause()
+    );
+    this.pauseButton.setVisible(false);
+
+    // 返回按钮
+    this.backButton = this.createButton(
+      startX + buttonSpacing * 2,
+      buttonY,
+      '↩️ 返回',
+      0x95a5a6,
+      () => this.backToMenu()
+    );
+  }
+
+  createButton(x, y, text, color, callback) {
+    const button = this.add.container(x, y);
+
+    // 按钮背景
+    const bg = this.add.roundRect(-75, -25, 150, 50, 8, color);
+    bg.setInteractive({ useHandCursor: true });
+    bg.setStrokeStyle(2, 0xffffff);
+
+    // 按钮文字
+    const label = this.add.text(0, 0, text, {
+      font: 'bold 20px Microsoft YaHei',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 3
     }).setOrigin(0.5);
 
-    startBtn.on('pointerdown', () => {
-      if (this.gameState === 'waiting' || this.gameState === 'ended') {
-        this.startGame();
-      } else {
-        this.nextTurn();
-      }
+    button.add([bg, label]);
+
+    // 悬停效果
+    bg.on('pointerover', () => {
+      bg.setFillStyle(Phaser.Display.Color.GetColor(
+        Phaser.Display.Color.RgbToComponent(color, 'r') + 30,
+        Phaser.Display.Color.RgbToComponent(color, 'g') + 30,
+        Phaser.Display.Color.RgbToComponent(color, 'b') + 30
+      ));
+      this.tweens.add({
+        targets: button,
+        scaleX: 1.05,
+        scaleY: 1.05,
+        duration: 100
+      });
     });
 
-    // 按钮悬停效果
-    startBtn.on('pointerover', () => startBtn.setFillStyle(0xe74c3c));
-    startBtn.on('pointerout', () => startBtn.setFillStyle(0xf39c12));
+    bg.on('pointerout', () => {
+      bg.setFillStyle(color);
+      this.tweens.add({
+        targets: button,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 100
+      });
+    });
 
-    this.startButton = { rect: startBtn, text: startText };
+    // 点击事件
+    bg.on('pointerdown', () => {
+      this.tweens.add({
+        targets: button,
+        scaleX: 0.95,
+        scaleY: 0.95,
+        duration: 50,
+        onComplete: () => {
+          if (this.gameState !== 'paused' || callback.toString().includes('togglePause')) {
+            callback();
+          }
+        }
+      });
+    });
+
+    return button;
   }
 
   createPlayers() {
@@ -158,17 +224,26 @@ export class GameScene extends Phaser.Scene {
 
     // 随机分配武将
     const character = CHARACTERS[index % CHARACTERS.length];
+    const kingdom = KINGDOM_COLORS[character.kingdom];
 
-    // 头像框
-    const frame = this.add.circle(0, 0, 60, 0xf39c12, 1);
-    frame.setStrokeStyle(4, 0xe74c3c);
+    // 头像框（势力颜色）
+    const frame = this.add.circle(0, 0, 65, kingdom.primary);
+    frame.setStrokeStyle(4, 0xffffff);
 
-    // 武将头像（使用颜色块 + 文字代替图片）
-    const avatarBg = this.add.circle(0, 0, 55, this.getKingdomColor(character.kingdom));
-    const avatarText = this.add.text(0, 0, character.name[0], {
-      font: 'bold 48px Microsoft YaHei',
-      color: '#ffffff'
-    }).setOrigin(0.5);
+    // 武将头像（使用 DiceBear API）
+    const avatarBg = this.add.circle(0, 0, 60, 0xffffff);
+    
+    // 加载头像图片
+    const avatarImage = this.add.image(0, 0, 'avatar_default');
+    avatarImage.setDisplaySize(110, 110);
+
+    // 势力标识
+    const kingdomText = this.add.text(-50, -50, kingdom.name, {
+      font: 'bold 16px Microsoft YaHei',
+      color: '#ffffff',
+      backgroundColor: kingdom.primary,
+      padding: { x: 8, y: 4 }
+    }).setOrigin(0);
 
     // 武将名称
     const nameText = this.add.text(0, 75, character.name, {
@@ -178,8 +253,18 @@ export class GameScene extends Phaser.Scene {
       strokeThickness: 4
     }).setOrigin(0.5);
 
+    // 技能描述
+    const skillText = this.add.text(0, 95, `[${character.skill}] ${character.description}`, {
+      font: '12px Microsoft YaHei',
+      color: '#f39c12',
+      wordWrap: { width: 140 },
+      align: 'center',
+      backgroundColor: '#00000080',
+      padding: { x: 5, y: 3 }
+    }).setOrigin(0.5);
+
     // 体力值
-    const hpContainer = this.add.container(0, 95);
+    const hpContainer = this.add.container(0, 120);
     this.updateHPDisplay(hpContainer, character.hp, character.hp);
 
     // 手牌数
@@ -196,10 +281,10 @@ export class GameScene extends Phaser.Scene {
       color: '#f39c12'
     }).setOrigin(0.5);
 
-    container.add([frame, avatarBg, avatarText, nameText, hpContainer, cardCount, role]);
+    container.add([frame, avatarBg, avatarImage, kingdomText, nameText, skillText, hpContainer, cardCount, role]);
 
     // 选中效果（初始隐藏）
-    const selectFrame = this.add.circle(0, 0, 65, 0xffffff, 0);
+    const selectFrame = this.add.circle(0, 0, 70, 0xffff00, 0);
     selectFrame.setStrokeStyle(4, 0xffff00);
     container.add(selectFrame);
 
@@ -213,7 +298,9 @@ export class GameScene extends Phaser.Scene {
       hpContainer,
       cardCountText: cardCount,
       selectFrame,
-      isAlive: true
+      isAlive: true,
+      nameText,
+      skillText
     };
   }
 
@@ -221,24 +308,13 @@ export class GameScene extends Phaser.Scene {
     container.removeAll(true);
 
     const hpText = this.add.text(0, 0, '❤️'.repeat(current) + '🖤'.repeat(max - current), {
-      font: 'bold 20px Microsoft YaHei'
+      font: 'bold 18px Microsoft YaHei'
     }).setOrigin(0.5);
 
     container.add(hpText);
   }
 
-  getKingdomColor(kingdom) {
-    const colors = {
-      wei: 0x3498db,   // 魏 - 蓝
-      shu: 0x2ecc71,   // 蜀 - 绿
-      wu: 0xe74c3c,    // 吴 - 红
-      qun: 0xf39c12    // 群 - 橙
-    };
-    return colors[kingdom] || 0x95a5a6;
-  }
-
   initGame() {
-    // 初始化牌堆
     this.initDeck();
   }
 
@@ -253,12 +329,13 @@ export class GameScene extends Phaser.Scene {
           key,
           name: card.name,
           type: card.type,
-          color: card.color
+          color: card.color,
+          description: card.description,
+          suit: card.suit
         });
       }
     });
 
-    // 洗牌
     this.shuffleDeck();
     this.updateDeckDisplay();
   }
@@ -283,32 +360,27 @@ export class GameScene extends Phaser.Scene {
       if (this.deck.length > 0) {
         const card = this.deck.pop();
         player.handCards.push(card);
-        
-        // 摸牌动画
-        this.animateDrawCard(player);
+        this.animateDrawCard(player, card);
       }
     }
     this.updatePlayerCards(player);
     this.updateDeckDisplay();
   }
 
-  animateDrawCard(player) {
+  animateDrawCard(player, card) {
     const { width, height } = this.scale;
     
-    // 从牌堆位置创建卡牌
-    const card = this.add.rectangle(width - 150, 40, 60, 80, 0x34495e);
-    card.setStrokeStyle(2, 0xf39c12);
+    const cardRect = this.add.rectangle(width - 150, 40, 60, 80, card.color);
+    cardRect.setStrokeStyle(2, 0xffffff);
 
-    // 飞行动画到玩家
     this.tweens.add({
-      targets: card,
+      targets: cardRect,
       x: player.container.x,
       y: player.container.y - 100,
       duration: 500,
       ease: 'Power2',
       onComplete: () => {
-        card.destroy();
-        // 摸牌特效
+        cardRect.destroy();
         this.createParticleEffect(player.container.x, player.container.y - 100, 0xf39c12);
       }
     });
@@ -320,21 +392,59 @@ export class GameScene extends Phaser.Scene {
 
   updateDeckDisplay() {
     this.deckText.setText(`牌堆：${this.deck.length}`);
+    this.discardText.setText(`弃牌：${this.discardPile.length}`);
   }
 
   startGame() {
+    if (this.gameState === 'playing') return;
+    
     this.gameState = 'playing';
+    this.isPaused = false;
     this.log('🎲 游戏开始！', 'system');
     
-    // 更新按钮文字
-    this.startButton.text.setText('⏭️ 下一回合');
-    this.startButton.rect.setFillStyle(0x2ecc71);
-
-    // 开始第一回合
+    // 更新按钮状态
+    this.startButton.setText('🔄 重新开始');
+    this.startButton.getAt(0).setFillStyle(0xe74c3c);
+    this.pauseButton.setVisible(true);
+    this.pauseButton.getAt(0).setFillStyle(0xe67e22);
+    this.pauseButton.getAt(1).setText('⏸️ 暂停');
+    
+    this.statusText.setText('游戏中');
+    this.statusText.setColor('#2ecc71');
+    
     this.startTurn();
   }
 
+  togglePause() {
+    if (this.gameState !== 'playing') return;
+    
+    this.isPaused = !this.isPaused;
+    
+    if (this.isPaused) {
+      this.gameState = 'paused';
+      this.pauseButton.getAt(1).setText('▶️ 继续');
+      this.pauseButton.getAt(0).setFillStyle(0x2ecc71);
+      this.statusText.setText('已暂停');
+      this.statusText.setColor('#f39c12');
+      this.log('⏸️ 游戏已暂停', 'system');
+    } else {
+      this.gameState = 'playing';
+      this.pauseButton.getAt(1).setText('⏸️ 暂停');
+      this.pauseButton.getAt(0).setFillStyle(0xe67e22);
+      this.statusText.setText('游戏中');
+      this.statusText.setColor('#2ecc71');
+      this.log('▶️ 游戏继续', 'system');
+      this.startTurn();
+    }
+  }
+
+  backToMenu() {
+    this.scene.start('MenuScene');
+  }
+
   startTurn() {
+    if (this.isPaused) return;
+    
     const player = this.players[this.currentPlayerIndex];
     
     if (!player.isAlive) {
@@ -344,37 +454,32 @@ export class GameScene extends Phaser.Scene {
 
     this.turnCount++;
     this.turnText.setText(`第 ${this.turnCount} 回合 | ${player.character.name}`);
+    this.turnText.setColor('#f39c12');
 
-    // 高亮当前玩家
     this.highlightPlayer(player);
-
     this.log(`========== 第 ${this.turnCount} 回合 - ${player.character.name} ==========`, 'turn');
     this.log(`📦 摸牌阶段`, 'phase');
 
-    // 摸 2 张牌
     setTimeout(() => {
       this.drawCard(player, 2);
       this.log(`🃏 摸了 2 张牌`, 'draw');
 
-      // 出牌阶段（AI 自动）
       setTimeout(() => {
+        this.log(`🎯 出牌阶段`, 'phase');
         this.aiPlayCard(player);
       }, 1000);
     }, 500);
   }
 
   highlightPlayer(player) {
-    // 清除所有高亮
     this.players.forEach(p => {
       p.selectFrame.setStrokeStyle(0, 0xffff00);
       p.selectFrame.setAlpha(0);
     });
 
-    // 高亮当前玩家
     player.selectFrame.setAlpha(1);
     player.selectFrame.setStrokeStyle(4, 0xffff00);
 
-    // 缩放动画
     this.tweens.add({
       targets: player.container,
       scaleX: 1.1,
@@ -391,22 +496,16 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    // 简单 AI：随机使用一张牌
     const cardIndex = Math.floor(Math.random() * player.handCards.length);
     const card = player.handCards[cardIndex];
 
-    this.log(`🎯 出牌阶段`, 'phase');
     this.log(`🃏 使用【${card.name}】`, 'play');
-
-    // 出牌动画
     this.animatePlayCard(player, card, cardIndex);
   }
 
   animatePlayCard(player, card, cardIndex) {
-    const { width, height } = this.scale;
     const targetPlayer = this.getRandomTarget(player);
 
-    // 创建卡牌
     const playingCard = this.add.rectangle(
       player.container.x,
       player.container.y - 50,
@@ -415,7 +514,6 @@ export class GameScene extends Phaser.Scene {
     );
     playingCard.setStrokeStyle(3, 0xffffff);
 
-    // 卡牌文字
     const cardText = this.add.text(
       player.container.x,
       player.container.y - 50,
@@ -428,7 +526,6 @@ export class GameScene extends Phaser.Scene {
       }
     ).setOrigin(0.5);
 
-    // 飞行动画
     this.tweens.add({
       targets: [playingCard, cardText],
       x: targetPlayer.container.x,
@@ -436,19 +533,14 @@ export class GameScene extends Phaser.Scene {
       duration: 600,
       ease: 'Power2',
       onComplete: () => {
-        // 命中效果
         this.createHitEffect(targetPlayer, card);
-        
-        // 清理
         playingCard.destroy();
         cardText.destroy();
 
-        // 从手牌移除
         player.handCards.splice(cardIndex, 1);
         this.updatePlayerCards(player);
         this.discardPile.push(card);
 
-        // 结束回合
         setTimeout(() => {
           this.endTurn();
         }, 1000);
@@ -466,7 +558,6 @@ export class GameScene extends Phaser.Scene {
     const x = player.container.x;
     const y = player.container.y;
 
-    // 伤害数字
     let damage = 1;
     if (card.key === 'juedou') damage = 2;
 
@@ -477,7 +568,6 @@ export class GameScene extends Phaser.Scene {
       strokeThickness: 6
     }).setOrigin(0.5);
 
-    // 伤害动画
     this.tweens.add({
       targets: damageText,
       y: y - 150,
@@ -487,10 +577,8 @@ export class GameScene extends Phaser.Scene {
       onComplete: () => damageText.destroy()
     });
 
-    // 粒子效果
     this.createParticleEffect(x, y, 0xe74c3c, 20);
 
-    // 扣血
     player.hp = Math.max(0, player.hp - damage);
     this.updateHPDisplay(player.hpContainer, player.hp, player.maxHp);
 
@@ -500,7 +588,6 @@ export class GameScene extends Phaser.Scene {
       this.log(`💀 ${player.character.name} 阵亡！`, 'death');
       this.createDeathEffect(player);
     } else {
-      // 尝试求桃（简化：自动使用桃）
       const taoIndex = player.handCards.findIndex(c => c.key === 'tao');
       if (taoIndex !== -1 && player.hp < player.maxHp) {
         setTimeout(() => {
@@ -515,8 +602,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   createParticleEffect(x, y, color, count = 10) {
-    const particles = [];
-
     for (let i = 0; i < count; i++) {
       const particle = this.add.circle(x, y, 5, color);
       const angle = (Math.PI * 2 / count) * i;
@@ -530,8 +615,6 @@ export class GameScene extends Phaser.Scene {
         duration: 500 + Math.random() * 300,
         onComplete: () => particle.destroy()
       });
-
-      particles.push(particle);
     }
   }
 
@@ -539,10 +622,7 @@ export class GameScene extends Phaser.Scene {
     const x = player.container.x;
     const y = player.container.y;
 
-    // 灰色粒子爆发
     this.createParticleEffect(x, y, 0x95a5a6, 30);
-
-    // 屏幕震动
     this.cameras.main.shake(200, 0.01);
   }
 
@@ -550,7 +630,6 @@ export class GameScene extends Phaser.Scene {
     const x = player.container.x;
     const y = player.container.y;
 
-    // 回复数字
     const healText = this.add.text(x, y - 80, '+1', {
       font: 'bold 64px Microsoft YaHei',
       color: '#2ecc71',
@@ -566,14 +645,12 @@ export class GameScene extends Phaser.Scene {
       onComplete: () => healText.destroy()
     });
 
-    // 绿色粒子
     this.createParticleEffect(x, y, 0x2ecc71, 15);
   }
 
   endTurn() {
     this.log(`✅ 回合结束`, 'system');
 
-    // 貂蝉闭月技能（摸 1 牌）
     const player = this.players[this.currentPlayerIndex];
     if (player.character.key === 'diaochan' && player.isAlive) {
       setTimeout(() => {
@@ -588,12 +665,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   nextTurn() {
-    // 检查游戏结束
     if (this.checkGameOver()) {
       return;
     }
 
-    // 下一个玩家
     do {
       this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
     } while (!this.players[this.currentPlayerIndex].isAlive);
@@ -610,10 +685,13 @@ export class GameScene extends Phaser.Scene {
       
       this.log(`🏆 游戏结束！${winner ? winner.character.name : '无人'} 获胜！`, 'system');
       
-      this.startButton.text.setText('🔄 重新开始');
-      this.startButton.rect.setFillStyle(0xf39c12);
+      this.startButton.setText('🔄 重新开始');
+      this.startButton.getAt(0).setFillStyle(0xf39c12);
+      this.pauseButton.setVisible(false);
       
-      // 胜利特效
+      this.statusText.setText('游戏结束');
+      this.statusText.setColor('#e74c3c');
+      
       if (winner) {
         this.createVictoryEffect(winner);
       }
@@ -627,7 +705,6 @@ export class GameScene extends Phaser.Scene {
   createVictoryEffect(winner) {
     const { width, height } = this.scale;
     
-    // 彩带粒子
     for (let i = 0; i < 50; i++) {
       setTimeout(() => {
         const x = Math.random() * width;
@@ -636,7 +713,6 @@ export class GameScene extends Phaser.Scene {
       }, i * 100);
     }
 
-    // 胜利文字
     const victoryText = this.add.text(width / 2, height / 2, '🏆 胜利！', {
       font: 'bold 96px Microsoft YaHei',
       color: '#f39c12',
@@ -691,19 +767,16 @@ export class GameScene extends Phaser.Scene {
     const entry = `[${time}] ${message}`;
     this.logSystem.entries.push({ text: entry, color: colors[type] || colors.normal });
 
-    // 保持最新 10 条
     if (this.logSystem.entries.length > 10) {
       this.logSystem.entries.shift();
     }
 
-    // 重新渲染日志
     this.renderLog();
   }
 
   renderLog() {
     const { width, height } = this.scale;
     
-    // 清除旧日志文字
     if (this.logSystem.text) {
       this.logSystem.text.destroy();
     }
