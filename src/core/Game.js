@@ -433,10 +433,18 @@ export class Game {
       case 'taoyuan':
         this.handleTaoyuan(player, card);
         return;
+      case 'wuke':
+        // 无懈可击是响应牌，不应该在出牌阶段主动使用
+        // 如果 AI 错误选择了这张牌，直接跳过
+        this.renderer.addLog(`【无懈可击】是响应牌，无法主动使用`, 'normal');
+        this.deck.discard(card);
+        this.renderer.updateUI(this);
+        setTimeout(() => this.executePlayQueue(player), 400);
+        return;
       default:
         // 其他牌的默认处理
         this.renderer.addLog(`使用【${card.name}】`, 'play');
-        if (target) {
+        if (target && target.isAlive) {
           target.takeDamage(1);
           this.renderer.updatePlayer(target);
           this.checkDeath(target, player);
@@ -788,8 +796,6 @@ export class Game {
         }
       }
       this.renderer.addLog(`弃置 ${discardCount} 张牌：${discarded.join(' ')}`, 'normal');
-    } else {
-      this.renderer.addLog(`无需弃牌（手牌 ${player.handCards.length} ≤ 体力 ${player.hp}）`, 'normal');
     }
     
     this.renderer.updatePlayer(player);

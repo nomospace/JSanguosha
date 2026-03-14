@@ -220,12 +220,24 @@ export function aiDecideCard(player, players) {
     }
   }
   
-  // 用锦囊
-  const scrolls = handCards.filter(c => c.type === 'scroll');
+  // 用锦囊（排除无懈可击，因为它是响应牌）
+  const scrolls = handCards.filter(c => c.type === 'scroll' && c.key !== 'wuke');
   if (scrolls.length > 0) {
-    const target = aiSelectTarget(player, players);
-    if (target) {
-      return { card: scrolls[0], action: 'use', target };
+    // 优先使用非延时锦囊
+    const normalScrolls = scrolls.filter(c => !['lebusishu', 'bingliangcunduan', 'shandian'].includes(c.key));
+    if (normalScrolls.length > 0) {
+      const target = aiSelectTarget(player, players);
+      if (target) {
+        return { card: normalScrolls[0], action: 'use', target };
+      }
+    }
+    // 延时锦囊
+    const delayScrolls = scrolls.filter(c => ['lebusishu', 'bingliangcunduan', 'shandian'].includes(c.key));
+    if (delayScrolls.length > 0) {
+      const target = aiSelectTarget(player, players);
+      if (target) {
+        return { card: delayScrolls[0], action: 'use', target };
+      }
     }
   }
   
