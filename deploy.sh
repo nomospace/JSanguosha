@@ -4,9 +4,9 @@
 
 set -e
 
-PROJECT_NAME="weseewe-phaser"
-BUILD_DIR="/home/admin/.openclaw/workspace/weseewe-phaser/dist"
-NGINX_ROOT="/var/www/weseewe-phaser"
+PROJECT_NAME="jsanguosha"
+BUILD_DIR="/home/admin/.openclaw/workspace/jsanguosha/dist"
+NGINX_ROOT="/var/www/jsanguosha"
 PORT=3006
 
 echo "🦞 开始部署 ${PROJECT_NAME}..."
@@ -31,7 +31,7 @@ sudo chmod -R 755 ${NGINX_ROOT}
 
 # 4. 配置 Nginx
 echo "⚙️ 配置 Nginx..."
-sudo tee /etc/nginx/conf.d/weseewe-phaser.conf > /dev/null << EOF
+sudo tee /etc/nginx/conf.d/jsanguosha.conf > /dev/null << EOF
 server {
     listen ${PORT};
     server_name _;

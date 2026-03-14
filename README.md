@@ -1,11 +1,12 @@
-# 🦞 微杀杀 Online - 视觉化三国杀单机版
+# 🦞 JSanguosha - 视觉化三国杀单机版
 
-> 基于 Phaser 3 的视觉化三国杀单机游戏
+> Sanguosha written in JavaScript (Phaser 3) | 基于 Phaser 3 的视觉化三国杀单机游戏
 
 ## 🌐 访问地址
 
 - **本地**: http://localhost:3006/
 - **公网**: http://47.102.199.24:3006/
+- **GitHub**: https://github.com/nomospace/JSanguosha
 
 ## ✨ 特性
 

@@ -1,14 +1,14 @@
 {
-  "name": "weseewe-phaser",
+  "name": "jsanguosha",
   "version": "2.0.0",
-  "description": "微杀杀 Online - 视觉化三国杀单机版",
+  "description": "JSanguosha - Sanguosha written in JavaScript (Phaser 3)",
   "main": "src/main.js",
   "scripts": {
     "dev": "webpack serve --mode development --port 3006",
     "build": "webpack --mode production",
     "deploy": "bash deploy.sh"
   },
-  "keywords": ["phaser", "sanguosha", "card-game"],
+  "keywords": ["phaser", "sanguosha", "jsanguosha", "card-game"],
   "author": "金大虾",
   "license": "MIT",
   "dependencies": {
