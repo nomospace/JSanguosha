@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>微杀杀 Online - 视觉化三国杀</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #game-container {
+      box-shadow: 0 0 50px rgba(243, 156, 18, 0.3);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .loading.hidden {
+      display: none;
+    }
+
+    .loading h1 {
+      font-size: 48px;
+      color: #f39c12;
+      margin-bottom: 20px;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .loading p {
+      font-size: 18px;
+      color: #666;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .info {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      font-size: 14px;
+      color: #666;
+    }
+
+    .info a {
+      color: #f39c12;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- 加载页面 -->
+  <div class="loading" id="loading">
+    <h1>🦞 微杀杀 Online</h1>
+    <p>正在加载游戏资源...</p>
+  </div>
+
+  <!-- 游戏容器 -->
+  <div id="game-container"></div>
+
+  <!-- 底部信息 -->
+  <div class="info">
+    <p>基于 Phaser 3 构建 | 单机版 | v2.0.0</p>
+    <p>🦞 Created by 金大虾</p>
+  </div>
+
+  <!-- 游戏脚本 -->
+  <script src="dist/game.bundle.js"></script>
+
+  <!-- 隐藏加载页面 -->
+  <script>
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.getElementById('loading').classList.add('hidden');
+      }, 1000);
+    });
+  </script>
+</body>
+</html>
