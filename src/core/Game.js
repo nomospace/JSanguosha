@@ -428,7 +428,7 @@ export class Game {
         this.handleLebu(player, target, card);
         return;
       case 'jiedao':
-        this.handleJiedao(player, target, card);
+        this.handleJiedao(player, card);  // 借刀杀人在方法内部选择目标
         return;
       case 'taoyuan':
         this.handleTaoyuan(player, card);
@@ -456,56 +456,87 @@ export class Game {
   }
 
   // 借刀杀人
-  handleJiedao(player, target, card) {
-    this.renderer.addLog(`📜 对 ${target.character.name} 使用【借刀杀人】`, 'play');
+  handleJiedao(player, card) {
+    // 步骤1: 检查场上是否有装备武器的武将
+    const playersWithWeapon = this.players.filter(p => 
+      p !== player && 
+      p.isAlive && 
+      p.equipment?.weapon
+    );
     
-    // 检查目标是否有武器
-    if (!target.equipment?.weapon) {
-      this.renderer.addLog(`${target.character.name} 没有武器，借刀杀人无效`, 'normal');
-      this.deck.discard(card);
+    if (playersWithWeapon.length === 0) {
+      this.renderer.addLog(`❌ 无法使用【借刀杀人】：场上没有装备武器的武将`, 'normal');
+      // 归还卡牌
+      player.handCards.push(card);
+      this.renderer.updatePlayer(player);
       this.renderer.updateUI(this);
       setTimeout(() => this.executePlayQueue(player), 400);
       return;
     }
     
-    // 目标选择：对某人出杀或弃置武器
-    const shaTarget = this.findValidTarget(target);
+    // 步骤2: 随机选择一个装备武器的武将作为借刀目标
+    const jiedaoTarget = playersWithWeapon[Math.floor(Math.random() * playersWithWeapon.length)];
     
-    if (shaTarget && target.handCards.some(c => c.key === 'sha')) {
-      // 目标有杀且有目标，对目标出杀
-      const shaIndex = target.handCards.findIndex(c => c.key === 'sha');
-      const sha = target.handCards.splice(shaIndex, 1)[0];
-      this.renderer.addLog(`${target.character.name} 对 ${shaTarget.character.name} 使用【杀】`, 'play');
+    this.renderer.addLog(`📜 ${player.character.name} 对 ${jiedaoTarget.character.name} 使用【借刀杀人】`, 'play');
+    
+    // 步骤3: 检查目标是否有可攻击的对象
+    const shaTarget = this.findValidTarget(jiedaoTarget);
+    
+    if (!shaTarget) {
+      // 没有可攻击目标，目标弃置武器
+      const weapon = jiedaoTarget.equipment.weapon;
+      if (weapon) {
+        jiedaoTarget.equipment.weapon = null;
+        this.deck.discard(weapon);
+        this.renderer.addLog(`${jiedaoTarget.character.name} 没有可攻击目标，弃置武器【${weapon.name}】`, 'play');
+      }
+    } else if (jiedaoTarget.handCards.some(c => c.key === 'sha')) {
+      // 目标有杀，对杀目标出杀
+      const shaIndex = jiedaoTarget.handCards.findIndex(c => c.key === 'sha');
+      const sha = jiedaoTarget.handCards.splice(shaIndex, 1)[0];
+      this.renderer.addLog(`⚔️ ${jiedaoTarget.character.name} 对 ${shaTarget.character.name} 使用【杀】`, 'play');
       
       // 处理杀的效果
-      const decision = aiDecideShan(shaTarget, sha, target);
-      if (decision.useShan || decision.useBagua) {
-        this.renderer.addLog(`${shaTarget.character.name} 闪避成功`, 'normal');
-        if (decision.useShan) {
-          const shanIdx = shaTarget.handCards.findIndex(c => c.key === 'shan');
-          if (shanIdx !== -1) {
-            const shan = shaTarget.handCards.splice(shanIdx, 1)[0];
-            this.deck.discard(shan);
-          }
+      const decision = aiDecideShan(shaTarget, sha, jiedaoTarget);
+      
+      if (decision.useBagua) {
+        const judgeCard = this.deck.judge();
+        const isRed = judgeCard && (judgeCard.suit === 'heart' || judgeCard.suit === 'diamond');
+        if (isRed) {
+          this.renderer.addLog(`✨ ${shaTarget.character.name} 八卦阵生效，闪避成功`, 'skill');
+        } else {
+          shaTarget.takeDamage(1);
+          this.renderer.addLog(`💥 ${shaTarget.character.name} 受到 1 点伤害`, 'play');
+          this.checkDeath(shaTarget, jiedaoTarget);
+        }
+      } else if (decision.useShan) {
+        const shanIdx = shaTarget.handCards.findIndex(c => c.key === 'shan');
+        if (shanIdx !== -1) {
+          const shan = shaTarget.handCards.splice(shanIdx, 1)[0];
+          this.deck.discard(shan);
+          this.renderer.addLog(`🛡️ ${shaTarget.character.name} 使用【闪】闪避成功`, 'normal');
         }
       } else {
         shaTarget.takeDamage(1);
-        this.renderer.addLog(`💥 ${shaTarget.character.name} 受到 1 点伤害`, 'play');
-        this.renderer.updatePlayer(shaTarget);
-        this.checkDeath(shaTarget, target);
+        this.renderer.addLog(`💥 ${shaTarget.character.name} 受到 1 点伤害，剩余 ${shaTarget.hp} 点体力`, 'play');
+        this.checkDeath(shaTarget, jiedaoTarget);
       }
       
       this.deck.discard(sha);
+      this.renderer.updatePlayer(shaTarget);
     } else {
-      // 弃置武器
-      const weapon = target.equipment.weapon;
-      target.equipment.weapon = null;
-      this.deck.discard(weapon);
-      this.renderer.addLog(`${target.character.name} 弃置武器【${weapon.name}】`, 'play');
+      // 目标没有杀，弃置武器
+      const weapon = jiedaoTarget.equipment.weapon;
+      if (weapon) {
+        jiedaoTarget.equipment.weapon = null;
+        this.deck.discard(weapon);
+        this.renderer.addLog(`${jiedaoTarget.character.name} 没有【杀】，弃置武器【${weapon.name}】`, 'play');
+      }
     }
     
     this.deck.discard(card);
-    this.renderer.updatePlayer(target);
+    this.renderer.updatePlayer(jiedaoTarget);
+    this.renderer.updatePlayer(player);
     this.renderer.updateUI(this);
     setTimeout(() => this.executePlayQueue(player), 400);
   }
