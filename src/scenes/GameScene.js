@@ -132,8 +132,8 @@ export class GameScene extends Phaser.Scene {
   createButton(x, y, text, color, callback) {
     const button = this.add.container(x, y);
 
-    // 按钮背景
-    const bg = this.add.roundRect(-75, -25, 150, 50, 8, color);
+    // 按钮背景（使用普通矩形代替圆角矩形）
+    const bg = this.add.rectangle(-75, -25, 150, 50, color);
     bg.setInteractive({ useHandCursor: true });
     bg.setStrokeStyle(2, 0xffffff);
 
