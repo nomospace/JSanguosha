@@ -103,16 +103,23 @@ export class Game {
       return;
     }
     
-    // 重新初始化
+    // 重新初始化牌堆
     this.deck = new Deck();
+    
+    // 创建玩家
     this.createPlayers();
     this.renderer.renderPlayers(this.players);
     
+    // 更新牌堆显示
+    this.renderer.updateUI(this);
+    
     // 发初始手牌
-    this.players.forEach(player => {
+    this.players.forEach((player, idx) => {
       const cards = this.deck.drawMultiple(4);
       player.drawCards(cards);
       this.renderer.updatePlayer(player);
+      const cardNames = cards.map(c => `【${c.name}】`).join(' ');
+      this.renderer.addLog(`${player.character.name} 初始手牌：${cardNames}`, 'draw');
     });
     
     this.gameState = 'playing';
@@ -123,7 +130,7 @@ export class Game {
     this.renderer.updateButtons('playing');
     this.renderer.updateUI(this);
     
-    this.renderer.addLog('🎲 游戏开始！', 'system');
+    this.renderer.addLog(`🎮 游戏开始！牌堆 ${this.deck.getRemaining()} 张`, 'system');
     
     // 开始第一个回合
     setTimeout(() => this.startTurn(), 500);
@@ -256,7 +263,8 @@ export class Game {
     player.drawCards(cards);
     this.renderer.updatePlayer(player);
     this.renderer.updateUI(this);
-    this.renderer.addLog(`摸了 ${count} 张牌`, 'draw');
+    const cardNames = cards.map(c => `【${c.name}】`).join(' ');
+    this.renderer.addLog(`摸了 ${count} 张牌：${cardNames}`, 'draw');
     
     this.playPhase(player);
   }
@@ -408,20 +416,26 @@ export class Game {
   }
 
   handleSha(player, target, card) {
-    this.renderer.addLog(`⚔️ 对 ${target.character.name} 使用【杀】`, 'play');
+    this.renderer.addLog(`⚔️ ${player.character.name} 对 ${target.character.name} 使用【杀】`, 'play');
     
     const needShan = getRequiredShanCount(player, target);
+    if (needShan > 1) {
+      this.renderer.addLog(`⚡ 吕布【无双】需要 ${needShan} 张【闪】`, 'skill');
+    }
+    
     const decision = aiDecideShan(target, card, player);
     
     setTimeout(() => {
       if (decision.useBagua) {
         const judgeCard = this.deck.judge();
         const isRed = judgeCard && (judgeCard.suit === 'heart' || judgeCard.suit === 'diamond');
-        this.renderer.addLog(`八卦阵判定：${isRed ? '红' : '黑'}`, 'normal');
+        this.renderer.addLog(`🎯 八卦阵判定：${isRed ? '红' : '黑'}色`, 'normal');
         
         if (isRed) {
-          this.renderer.addLog(`${target.character.name} 八卦阵生效`, 'skill');
+          this.renderer.addLog(`✨ ${target.character.name} 八卦阵生效，闪避成功`, 'skill');
           player.hasUsedSha = true;
+          this.deck.discard(card);
+          this.renderer.updateUI(this);
           setTimeout(() => this.executePlayQueue(player), 400);
           return;
         }
@@ -436,20 +450,22 @@ export class Game {
             this.deck.discard(shan);
           }
         }
-        this.renderer.addLog(`${target.character.name} 使用【闪】`, 'normal');
+        this.renderer.addLog(`🛡️ ${target.character.name} 使用 ${shanCount} 张【闪】闪避成功`, 'normal');
         this.renderer.updatePlayer(target);
       } else {
         // 造成伤害
         const damage = getShaDamage(player, target);
         target.takeDamage(damage);
         this.renderer.updatePlayer(target);
-        this.renderer.addLog(`💥 造成 ${damage} 点伤害`, 'play');
+        this.renderer.addLog(`💥 ${target.character.name} 受到 ${damage} 点伤害，剩余 ${target.hp} 点体力`, 'play');
         
         this.handleDamageSkills(player, target, card);
         this.checkDeath(target, player);
       }
       
       player.hasUsedSha = true;
+      this.deck.discard(card);
+      this.renderer.updateUI(this);
       setTimeout(() => this.executePlayQueue(player), 400);
     }, 300);
   }
@@ -472,79 +488,90 @@ export class Game {
     const cards = this.deck.drawMultiple(2);
     player.drawCards(cards);
     this.renderer.updatePlayer(player);
-    this.renderer.addLog(`摸了 2 张牌`, 'draw');
+    const cardNames = cards.map(c => `【${c.name}】`).join(' ');
+    this.renderer.addLog(`摸了 2 张牌：${cardNames}`, 'draw');
     setTimeout(() => this.executePlayQueue(player), 400);
   }
 
   handleJuedou(player, target, card) {
     this.renderer.addLog(`⚔️ 对 ${target.character.name} 使用【决斗】`, 'play');
     
-    // 简化决斗：各出一张杀
-    const playerHasSha = player.handCards.some(c => c.key === 'sha');
-    const targetHasSha = target.handCards.some(c => c.key === 'sha');
+    // 检查无双
+    const needShaCount = target.character.key === 'lvbu' ? 2 : 1;
+    const playerShaCount = player.handCards.filter(c => c.key === 'sha').length;
+    const targetShaCount = target.handCards.filter(c => c.key === 'sha').length;
     
     setTimeout(() => {
-      if (playerHasSha && targetHasSha) {
-        // 双方都有杀，平局
+      const playerCanWin = playerShaCount >= needShaCount;
+      const targetCanWin = targetShaCount >= needShaCount;
+      
+      if (playerCanWin && targetCanWin) {
+        // 双方都有杀，各出一张
         const pIdx = player.handCards.findIndex(c => c.key === 'sha');
         const tIdx = target.handCards.findIndex(c => c.key === 'sha');
         if (pIdx !== -1) {
           const sha = player.handCards.splice(pIdx, 1)[0];
           this.deck.discard(sha);
+          this.renderer.addLog(`${player.character.name} 打出【杀】`, 'normal');
         }
         if (tIdx !== -1) {
           const sha = target.handCards.splice(tIdx, 1)[0];
           this.deck.discard(sha);
+          this.renderer.addLog(`${target.character.name} 打出【杀】`, 'normal');
         }
-        this.renderer.addLog('双方各出一张【杀】，平局', 'normal');
-      } else if (playerHasSha) {
+        this.renderer.addLog('决斗平局', 'normal');
+      } else if (playerCanWin || !targetCanWin) {
         target.takeDamage(1);
         this.renderer.updatePlayer(target);
-        this.renderer.addLog(`${target.character.name} 受到 1 点伤害`, 'play');
+        this.renderer.addLog(`${target.character.name} 无法出【杀】，受到 1 点伤害`, 'play');
         this.checkDeath(target, player);
-      } else if (targetHasSha) {
+      } else {
         player.takeDamage(1);
         this.renderer.updatePlayer(player);
-        this.renderer.addLog(`${player.character.name} 受到 1 点伤害`, 'play');
+        this.renderer.addLog(`${player.character.name} 无法出【杀】，受到 1 点伤害`, 'play');
         this.checkDeath(player, target);
-      } else {
-        target.takeDamage(1);
-        this.renderer.updatePlayer(target);
-        this.renderer.addLog(`${target.character.name} 受到 1 点伤害`, 'play');
-        this.checkDeath(target, player);
       }
       
       this.renderer.updatePlayer(player);
       this.renderer.updatePlayer(target);
+      this.renderer.updateUI(this);
       setTimeout(() => this.executePlayQueue(player), 400);
     }, 300);
   }
 
   handleShunshou(player, target) {
+    this.renderer.addLog(`📜 对 ${target.character.name} 使用【顺手牵羊】`, 'play');
     if (target.handCards.length > 0) {
       const idx = Math.floor(Math.random() * target.handCards.length);
       const card = target.handCards.splice(idx, 1)[0];
       player.handCards.push(card);
       this.renderer.updatePlayer(player);
       this.renderer.updatePlayer(target);
-      this.renderer.addLog(`📜 顺手牵羊获得【${card.name}】`, 'play');
+      this.renderer.addLog(`获得【${card.name}】`, 'play');
+    } else {
+      this.renderer.addLog(`${target.character.name} 没有手牌`, 'normal');
     }
+    this.renderer.updateUI(this);
     setTimeout(() => this.executePlayQueue(player), 400);
   }
 
   handleGuohe(player, target) {
+    this.renderer.addLog(`📜 对 ${target.character.name} 使用【过河拆桥】`, 'play');
     if (target.handCards.length > 0) {
       const idx = Math.floor(Math.random() * target.handCards.length);
       const card = target.handCards.splice(idx, 1)[0];
       this.deck.discard(card);
       this.renderer.updatePlayer(target);
-      this.renderer.addLog(`📜 过河拆桥弃置【${card.name}】`, 'play');
+      this.renderer.addLog(`弃置【${card.name}】`, 'play');
+    } else {
+      this.renderer.addLog(`${target.character.name} 没有手牌`, 'normal');
     }
+    this.renderer.updateUI(this);
     setTimeout(() => this.executePlayQueue(player), 400);
   }
 
   handleNanman(player, card) {
-    this.renderer.addLog(`📜 使用【南蛮入侵】`, 'play');
+    this.renderer.addLog(`📜 ${player.character.name} 使用【南蛮入侵】`, 'play');
     
     this.players.forEach(p => {
       if (p !== player && p.isAlive) {
@@ -553,10 +580,10 @@ export class Game {
           const idx = p.handCards.findIndex(c => c.key === 'sha');
           const sha = p.handCards.splice(idx, 1)[0];
           this.deck.discard(sha);
-          this.renderer.addLog(`${p.character.name} 打出【杀】`, 'normal');
+          this.renderer.addLog(`⚔️ ${p.character.name} 打出【杀】`, 'normal');
         } else {
           p.takeDamage(1);
-          this.renderer.addLog(`${p.character.name} 受到 1 点伤害`, 'play');
+          this.renderer.addLog(`💥 ${p.character.name} 受到 1 点伤害`, 'play');
           this.checkDeath(p, player);
         }
         this.renderer.updatePlayer(p);
@@ -567,7 +594,7 @@ export class Game {
   }
 
   handleWanjian(player, card) {
-    this.renderer.addLog(`📜 使用【万箭齐发】`, 'play');
+    this.renderer.addLog(`📜 ${player.character.name} 使用【万箭齐发】`, 'play');
     
     this.players.forEach(p => {
       if (p !== player && p.isAlive) {
@@ -576,30 +603,34 @@ export class Game {
           const idx = p.handCards.findIndex(c => c.key === 'shan');
           const shan = p.handCards.splice(idx, 1)[0];
           this.deck.discard(shan);
-          this.renderer.addLog(`${p.character.name} 打出【闪】`, 'normal');
+          this.renderer.addLog(`🛡️ ${p.character.name} 打出【闪】`, 'normal');
         } else {
           p.takeDamage(1);
-          this.renderer.addLog(`${p.character.name} 受到 1 点伤害`, 'play');
+          this.renderer.addLog(`💥 ${p.character.name} 受到 1 点伤害`, 'play');
           this.checkDeath(p, player);
         }
         this.renderer.updatePlayer(p);
       }
     });
     
+    this.deck.discard(card);
+    this.renderer.updateUI(this);
     setTimeout(() => this.executePlayQueue(player), 400);
   }
 
   handleLebu(player, target, card) {
     target.judgeCards.push(card);
     this.renderer.addLog(`🎭 对 ${target.character.name} 使用【乐不思蜀】`, 'play');
+    this.renderer.updateUI(this);
     setTimeout(() => this.executePlayQueue(player), 400);
   }
 
   handleDamageSkills(source, target, card) {
     // 曹操奸雄
     if (source.character.key === 'caocao') {
-      this.renderer.addLog(`✨ ${source.character.name} 发动【奸雄】获得伤害牌`, 'skill');
+      this.renderer.addLog(`✨ ${source.character.name} 发动【奸雄】获得【${card.name}】`, 'skill');
       source.handCards.push(card);
+      this.renderer.updatePlayer(source);
     }
     
     // 司马懿反馈
@@ -607,7 +638,7 @@ export class Game {
       const idx = Math.floor(Math.random() * source.handCards.length);
       const stolenCard = source.handCards.splice(idx, 1)[0];
       target.handCards.push(stolenCard);
-      this.renderer.addLog(`✨ ${target.character.name} 发动【反馈】`, 'skill');
+      this.renderer.addLog(`✨ ${target.character.name} 发动【反馈】获得【${stolenCard.name}】`, 'skill');
       this.renderer.updatePlayer(source);
       this.renderer.updatePlayer(target);
     }
@@ -616,7 +647,8 @@ export class Game {
     if (target.character.key === 'guojia' && target.isAlive) {
       const cards = this.deck.drawMultiple(2);
       target.drawCards(cards);
-      this.renderer.addLog(`✨ ${target.character.name} 发动【遗计】摸 2 张牌`, 'skill');
+      const cardNames = cards.map(c => `【${c.name}】`).join(' ');
+      this.renderer.addLog(`✨ ${target.character.name} 发动【遗计】摸 ${cardNames}`, 'skill');
       this.renderer.updatePlayer(target);
     }
   }
@@ -639,16 +671,24 @@ export class Game {
     this.renderer.addLog('🗑️ 弃牌阶段', 'phase');
     
     const maxCards = player.getMaxCards();
-    while (player.handCards.length > maxCards) {
-      const card = player.handCards.pop();
-      this.deck.discard(card);
-    }
+    const discardCount = player.handCards.length - maxCards;
     
-    if (player.handCards.length < maxCards + 1) {
-      this.renderer.addLog(`弃置至 ${player.handCards.length} 张牌`, 'normal');
+    if (discardCount > 0) {
+      const discarded = [];
+      for (let i = 0; i < discardCount; i++) {
+        const card = player.handCards.pop();
+        if (card) {
+          this.deck.discard(card);
+          discarded.push(`【${card.name}】`);
+        }
+      }
+      this.renderer.addLog(`弃置 ${discardCount} 张牌：${discarded.join(' ')}`, 'normal');
+    } else {
+      this.renderer.addLog(`无需弃牌（手牌 ${player.handCards.length} ≤ 体力 ${player.hp}）`, 'normal');
     }
     
     this.renderer.updatePlayer(player);
+    this.renderer.updateUI(this);
     
     // 结束阶段
     this.endPhase(player);
@@ -659,8 +699,10 @@ export class Game {
     if (player.character.key === 'diaochan' && player.isAlive) {
       const cards = this.deck.drawMultiple(1);
       player.drawCards(cards);
-      this.renderer.addLog(`🌙 ${player.character.name} 发动【闭月】摸 1 张牌`, 'skill');
+      const cardNames = cards.map(c => `【${c.name}】`).join(' ');
+      this.renderer.addLog(`🌙 ${player.character.name} 发动【闭月】摸 ${cardNames}`, 'skill');
       this.renderer.updatePlayer(player);
+      this.renderer.updateUI(this);
     }
     
     this.renderer.addLog('✅ 回合结束', 'system');

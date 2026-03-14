@@ -140,14 +140,23 @@ export class Renderer {
 
   // 更新 UI
   updateUI(game) {
-    const { turnCount, currentPlayerIndex, deck, discardPile, gameState, players } = game;
+    const { turnCount, currentPlayerIndex, deck, gameState, players } = game;
     const currentPlayer = players[currentPlayerIndex];
     
-    // 更新牌堆信息
-    this.elements.deckCount.textContent = `牌堆：${deck.getRemaining()}`;
-    this.elements.discardCount.textContent = `弃牌：${deck.getDiscardCount()}`;
-    this.elements.deckRemaining.textContent = deck.getRemaining();
-    this.elements.discardPile.textContent = deck.getDiscardCount();
+    // 更新牌堆信息（安全检查）
+    if (deck && typeof deck.getRemaining === 'function') {
+      const remaining = deck.getRemaining();
+      const discarded = deck.getDiscardCount();
+      this.elements.deckCount.textContent = `牌堆:${remaining}`;
+      this.elements.discardCount.textContent = `弃牌:${discarded}`;
+      this.elements.deckRemaining.textContent = remaining;
+      this.elements.discardPile.textContent = discarded;
+    } else {
+      this.elements.deckCount.textContent = `牌堆:0`;
+      this.elements.discardCount.textContent = `弃牌:0`;
+      this.elements.deckRemaining.textContent = '0';
+      this.elements.discardPile.textContent = '0';
+    }
     
     // 更新回合信息
     if (gameState === 'playing' && currentPlayer) {
