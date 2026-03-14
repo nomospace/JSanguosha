@@ -1,34 +1,12 @@
-import Phaser from 'phaser';
-import { BootScene } from './scenes/BootScene';
-import { MenuScene } from './scenes/MenuScene';
-import { GameScene } from './scenes/GameScene';
-import { CHARACTERS, KINGDOM_COLORS } from './config/characters';
-import { CARDS, SUITS, CARD_TYPES } from './config/cards';
+// 🦞 三国杀 Mini - 文字版主入口
+import { Game } from './game/Game';
 
-// 游戏配置
-const config = {
-  type: Phaser.AUTO,
-  width: 1280,
-  height: 720,
-  backgroundColor: '#1a1a2e',
-  parent: 'game-container',
-  scene: [BootScene, MenuScene, GameScene],
-  physics: {
-    default: 'arcade',
-    arcade: {
-      gravity: { y: 0 },
-      debug: false
-    }
-  },
-  scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH
-  }
-};
+// 初始化游戏
+const game = new Game();
+window.game = game;
 
-// 启动游戏
-const game = new Phaser.Game(config);
-
-// 全局调试
-window.gameInstance = game;
-console.log('🎮 微杀杀 Online 启动完成！');
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('🦞 三国杀 Mini 文字版已加载');
+  game.init();
+});

@@ -1,19 +1,16 @@
 {
   "name": "jsanguosha",
-  "version": "2.0.0",
-  "description": "JSanguosha - Sanguosha written in JavaScript (Phaser 3)",
+  "version": "3.0.0",
+  "description": "JSanguosha - Sanguosha written in JavaScript (Text Mode)",
   "main": "src/main.js",
   "scripts": {
-    "dev": "webpack serve --mode development --port 3006",
+    "dev": "webpack serve --mode development --port 3005",
     "build": "webpack --mode production",
     "deploy": "bash deploy.sh"
   },
-  "keywords": ["phaser", "sanguosha", "jsanguosha", "card-game"],
+  "keywords": ["sanguosha", "jsanguosha", "card-game", "text-mode"],
   "author": "金大虾",
   "license": "MIT",
-  "dependencies": {
-    "phaser": "^3.80.1"
-  },
   "devDependencies": {
     "webpack": "^5.89.0",
     "webpack-cli": "^5.1.4",

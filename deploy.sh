@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# 🦞 微杀杀 Online - 部署脚本
+# 🦞 三国杀 Mini - 部署脚本（文字版）
 
 set -e
 
 PROJECT_NAME="jsanguosha"
 BUILD_DIR="/home/admin/.openclaw/workspace/jsanguosha/dist"
 NGINX_ROOT="/var/www/jsanguosha"
-PORT=3006
+PORT=3005
 
 echo "🦞 开始部署 ${PROJECT_NAME}..."
 

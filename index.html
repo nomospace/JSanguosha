@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>微杀杀 Online - 视觉化三国杀</title>
+  <title>三国杀 Mini - 文字版</title>
   <style>
     * {
       margin: 0;
@@ -12,99 +12,283 @@
     }
 
     body {
-      font-family: 'Microsoft YaHei', sans-serif;
+      font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
       color: #fff;
       min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+      padding: 20px;
     }
 
-    #game-container {
-      box-shadow: 0 0 50px rgba(243, 156, 18, 0.3);
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* 顶部信息栏 */
+    .header {
+      background: rgba(0, 0, 0, 0.5);
       border-radius: 10px;
-      overflow: hidden;
+      padding: 15px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 2px solid #f39c12;
     }
 
-    .loading {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    .header h1 {
+      font-size: 28px;
+      color: #f39c12;
+    }
+
+    .header-info {
+      display: flex;
+      gap: 20px;
+      font-size: 16px;
+    }
+
+    .header-info span {
+      color: #fff;
+    }
+
+    .status {
+      font-weight: bold;
+      padding: 5px 15px;
+      border-radius: 5px;
+      background: #2ecc71;
+    }
+
+    /* 游戏区域 */
+    .game-area {
+      display: grid;
+      grid-template-columns: 1fr 350px;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    /* 玩家区域 */
+    .players-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+    }
+
+    .player-card {
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 10px;
+      padding: 15px;
+      border: 3px solid transparent;
+      transition: all 0.3s;
+    }
+
+    .player-card.active {
+      border-color: #f39c12;
+      box-shadow: 0 0 20px rgba(243, 156, 18, 0.5);
+    }
+
+    .player-card.dead {
+      opacity: 0.5;
+      filter: grayscale(100%);
+    }
+
+    .player-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .player-name {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .kingdom-wei { color: #3498db; }
+    .kingdom-shu { color: #2ecc71; }
+    .kingdom-wu { color: #e74c3c; }
+    .kingdom-qun { color: #f39c12; }
+
+    .player-skill {
+      font-size: 12px;
+      color: #f39c12;
+      margin: 5px 0;
+    }
+
+    .player-hp {
+      font-size: 20px;
+      margin: 10px 0;
+    }
+
+    .player-cards {
+      font-size: 14px;
+      color: #95a5a6;
+    }
+
+    /* 控制面板 */
+    .control-panel {
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 10px;
+      padding: 20px;
+      border: 2px solid #f39c12;
+    }
+
+    .control-buttons {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-    }
-
-    .loading.hidden {
-      display: none;
-    }
-
-    .loading h1 {
-      font-size: 48px;
-      color: #f39c12;
+      gap: 10px;
       margin-bottom: 20px;
-      animation: pulse 1.5s ease-in-out infinite;
     }
 
-    .loading p {
-      font-size: 18px;
-      color: #666;
+    .btn {
+      padding: 12px 20px;
+      font-size: 16px;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
     }
 
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
+    .btn:hover {
+      transform: translateY(-2px);
     }
 
-    .info {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      text-align: center;
+    .btn-primary {
+      background: #f39c12;
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #e67e22;
+      color: #fff;
+    }
+
+    .btn-danger {
+      background: #95a5a6;
+      color: #fff;
+    }
+
+    .deck-info {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+
+    .deck-info p {
+      margin: 5px 0;
       font-size: 14px;
-      color: #666;
     }
 
-    .info a {
+    /* 游戏日志 */
+    .game-log {
+      background: rgba(0, 0, 0, 0.6);
+      border: 2px solid #f39c12;
+      border-radius: 10px;
+      padding: 15px;
+      height: 400px;
+      overflow-y: auto;
+    }
+
+    .game-log h3 {
+      color: #f39c12;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+
+    .log-entry {
+      font-size: 13px;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .log-system { color: #f39c12; }
+    .log-turn { color: #e74c3c; }
+    .log-phase { color: #3498db; }
+    .log-draw { color: #2ecc71; }
+    .log-play { color: #9b59b6; }
+    .log-skill { color: #e67e22; }
+    .log-heal { color: #2ecc71; }
+    .log-death { color: #95a5a6; }
+    .log-normal { color: #fff; }
+
+    /* 底部信息 */
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      padding: 15px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .footer a {
       color: #f39c12;
       text-decoration: none;
+    }
+
+    /* 响应式 */
+    @media (max-width: 768px) {
+      .game-area {
+        grid-template-columns: 1fr;
+      }
+
+      .players-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .header {
+        flex-direction: column;
+        gap: 10px;
+      }
     }
   </style>
 </head>
 <body>
-  <!-- 加载页面 -->
-  <div class="loading" id="loading">
-    <h1>🦞 微杀杀 Online</h1>
-    <p>正在加载游戏资源...</p>
+  <div class="container">
+    <!-- 顶部信息栏 -->
+    <div class="header">
+      <h1>🦞 三国杀 Mini</h1>
+      <div class="header-info">
+        <span id="turn-display">准备开始</span>
+        <span class="status" id="game-status">等待开始</span>
+        <span id="deck-count">牌堆：0</span>
+        <span id="discard-count">弃牌：0</span>
+      </div>
+    </div>
+
+    <!-- 游戏主区域 -->
+    <div class="game-area">
+      <!-- 玩家区域 -->
+      <div class="players-grid" id="players-grid"></div>
+
+      <!-- 控制面板 -->
+      <div class="control-panel">
+        <div class="control-buttons">
+          <button class="btn btn-primary" id="btn-start" onclick="game.startGame()">🎲 开始游戏</button>
+          <button class="btn btn-secondary" id="btn-pause" onclick="game.togglePause()" style="display:none;">⏸️ 暂停</button>
+          <button class="btn btn-danger" onclick="game.backToMenu()">↩️ 返回</button>
+        </div>
+
+        <div class="deck-info">
+          <p>📦 牌堆剩余：<strong id="deck-remaining">0</strong></p>
+          <p>🗑️ 弃牌堆：<strong id="discard-pile">0</strong></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 游戏日志 -->
+    <div class="game-log">
+      <h3>📜 游戏日志</h3>
+      <div id="log-content"></div>
+    </div>
+
+    <!-- 底部信息 -->
+    <div class="footer">
+      <p>文字版 | 单机 AI 对战 | v3.0.0</p>
+      <p>🦞 Created by 金大虾</p>
+    </div>
   </div>
 
-  <!-- 游戏容器 -->
-  <div id="game-container"></div>
-
-  <!-- 底部信息 -->
-  <div class="info">
-    <p>基于 Phaser 3 构建 | 单机版 | v2.0.0</p>
-    <p>🦞 Created by 金大虾</p>
-  </div>
-
-  <!-- 游戏脚本 -->
   <script src="game.bundle.js"></script>
-
-  <!-- 隐藏加载页面 -->
-  <script>
-    window.addEventListener('load', () => {
-      setTimeout(() => {
-        document.getElementById('loading').classList.add('hidden');
-      }, 1000);
-    });
-  </script>
 </body>
 </html>
