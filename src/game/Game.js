@@ -1,5 +1,5 @@
-import { CHARACTERS, KINGDOM_COLORS } from '../config/characters';
-import { CARDS, SUITS } from '../config/cards';
+import { CHARACTERS, KINGDOM_COLORS, getCharacterAvatar } from '../config/characters';
+import { CARDS, SUITS, CARD_TYPES, getCardImage } from '../config/cards';
 
 export class Game {
   constructor() {
@@ -12,13 +12,69 @@ export class Game {
     this.gameState = 'waiting';
     this.isPaused = false;
     this.logEntries = [];
+    this.tooltip = null;
   }
 
   init() {
     this.renderPlayers();
     this.updateUI();
+    this.initTooltip();
     this.log('🎮 欢迎来到三国杀 Mini！', 'system');
     this.log('点击"开始游戏"按钮开始对战', 'system');
+  }
+
+  // ========== 悬浮提示 ==========
+
+  initTooltip() {
+    this.tooltip = {
+      el: document.getElementById('card-tooltip'),
+      image: document.getElementById('tooltip-image'),
+      name: document.getElementById('tooltip-name'),
+      suit: document.getElementById('tooltip-suit'),
+      desc: document.getElementById('tooltip-desc')
+    };
+
+    // 鼠标移动时更新提示位置
+    document.addEventListener('mousemove', (e) => {
+      if (this.tooltip.el.classList.contains('show')) {
+        const x = e.clientX + 15;
+        const y = e.clientY + 15;
+        
+        // 防止超出屏幕
+        const rect = this.tooltip.el.getBoundingClientRect();
+        const maxX = window.innerWidth - rect.width - 20;
+        const maxY = window.innerHeight - rect.height - 20;
+        
+        this.tooltip.el.style.left = Math.min(x, maxX) + 'px';
+        this.tooltip.el.style.top = Math.min(y, maxY) + 'px';
+      }
+    });
+  }
+
+  showCardTooltip(cardKey, event) {
+    const card = CARDS[cardKey];
+    if (!card || !this.tooltip) return;
+
+    const suit = SUITS[card.suit];
+    const imageUrl = getCardImage(cardKey);
+
+    this.tooltip.image.src = imageUrl;
+    this.tooltip.image.onerror = () => {
+      // 图片加载失败时显示占位图
+      this.tooltip.image.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 140"><rect fill="%231a1a2e" width="100" height="140"/><text x="50" y="70" text-anchor="middle" fill="%23f39c12" font-size="14">卡牌图片</text></svg>';
+    };
+    this.tooltip.name.textContent = card.name;
+    this.tooltip.name.style.color = card.color;
+    this.tooltip.suit.textContent = `${suit.symbol} ${suit.name} | ${CARD_TYPES[card.type].name}`;
+    this.tooltip.desc.textContent = card.description;
+
+    this.tooltip.el.classList.add('show');
+  }
+
+  hideCardTooltip() {
+    if (this.tooltip) {
+      this.tooltip.el.classList.remove('show');
+    }
   }
 
   // ========== 渲染 ==========
@@ -54,15 +110,20 @@ export class Game {
     card.id = `player-${player.index}`;
 
     const kingdom = KINGDOM_COLORS[player.character.kingdom];
+    const avatarUrl = getCharacterAvatar(player.character.key);
 
     card.innerHTML = `
       <div class="player-header">
-        <span class="player-name kingdom-${player.character.kingdom}">${player.character.name}</span>
-        <span style="color: ${kingdom.primary}; font-size: 12px;">${kingdom.name}</span>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <img src="${avatarUrl}" style="width: 40px; height: 40px; border-radius: 50%; background: ${kingdom.primary};" alt="${player.character.name}">
+          <span class="player-name kingdom-${player.character.kingdom}">${player.character.name}</span>
+        </div>
+        <span style="color: ${kingdom.primary}; font-size: 12px; font-weight: bold;">${kingdom.name}</span>
       </div>
-      <div class="player-skill">[${player.character.skill}] ${player.character.description}</div>
+      <div class="player-skill">【${player.character.skill}】${player.character.description}</div>
       <div class="player-hp" id="hp-${player.index}">${this.renderHP(player.hp, player.maxHp)}</div>
       <div class="player-cards" id="cards-${player.index}">📦 0 张手牌</div>
+      <div class="hand-cards" id="hand-cards-${player.index}"></div>
     `;
 
     return card;
@@ -79,9 +140,26 @@ export class Game {
     const hpEl = document.getElementById(`hp-${player.index}`);
     const cardsEl = document.getElementById(`cards-${player.index}`);
     const cardEl = document.getElementById(`player-${player.index}`);
+    const handCardsEl = document.getElementById(`hand-cards-${player.index}`);
 
     if (hpEl) hpEl.innerHTML = this.renderHP(player.hp, player.maxHp);
     if (cardsEl) cardsEl.textContent = `📦 ${player.handCards.length} 张手牌`;
+
+    // 渲染手牌
+    if (handCardsEl) {
+      handCardsEl.innerHTML = player.handCards.map(card => {
+        const suit = SUITS[card.suit] || SUITS.spade;
+        return `
+          <div class="mini-card" 
+               style="background: ${card.color}; border-color: ${card.color};"
+               onmouseenter="game.showCardTooltip('${card.key}', event)"
+               onmouseleave="game.hideCardTooltip()">
+            <div class="suit" style="color: #fff;">${suit.symbol}</div>
+            <div class="name" style="color: #fff;">${card.name}</div>
+          </div>
+        `;
+      }).join('');
+    }
 
     if (player.isAlive) {
       cardEl?.classList.remove('dead');
@@ -149,17 +227,14 @@ export class Game {
           key,
           name: card.name,
           type: card.type,
-          color: this.hexColor(card.color),
+          suit: card.suit,
+          color: card.color,
           description: card.description
         });
       }
     });
 
     this.shuffleDeck();
-  }
-
-  hexColor(num) {
-    return '#' + num.toString(16).padStart(6, '0');
   }
 
   shuffleDeck() {
@@ -270,7 +345,6 @@ export class Game {
   }
 
   backToMenu() {
-    // 简单返回：刷新页面
     if (confirm('确定要返回吗？当前游戏进度将丢失。')) {
       window.location.reload();
     }
@@ -328,12 +402,10 @@ export class Game {
   }
 
   resolveCard(sourcePlayer, targetPlayer, card, cardIndex) {
-    // 简单处理：大部分牌造成 1 点伤害
     let damage = 1;
 
     if (card.key === 'juedou') damage = 2;
     if (card.key === 'tao') {
-      // 桃：回复体力
       if (sourcePlayer.hp < sourcePlayer.maxHp) {
         sourcePlayer.hp = Math.min(sourcePlayer.maxHp, sourcePlayer.hp + 1);
         this.updatePlayerDisplay(sourcePlayer);
@@ -345,7 +417,6 @@ export class Game {
       return;
     }
 
-    // 造成伤害
     this.log(`⚔️ ${sourcePlayer.character.name} 对 ${targetPlayer.character.name} 造成 ${damage} 点伤害`, 'play');
 
     targetPlayer.hp = Math.max(0, targetPlayer.hp - damage);
@@ -370,7 +441,6 @@ export class Game {
 
     const player = this.players[this.currentPlayerIndex];
 
-    // 貂蝉技能：闭月
     if (player.character.key === 'diaochan' && player.isAlive) {
       setTimeout(() => {
         this.drawCard(player, 1);
@@ -454,7 +524,6 @@ export class Game {
   }
 
   calculatePlayerPositions(count) {
-    // 文字版不需要实际位置，返回索引即可
     return Array.from({ length: count }, (_, i) => ({ x: i, y: 0 }));
   }
 }
