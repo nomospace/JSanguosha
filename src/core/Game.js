@@ -434,12 +434,7 @@ export class Game {
         this.handleTaoyuan(player, card);
         return;
       case 'wuke':
-        // 无懈可击是响应牌，不应该在出牌阶段主动使用
-        // 如果 AI 错误选择了这张牌，直接跳过
-        this.renderer.addLog(`【无懈可击】是响应牌，无法主动使用`, 'normal');
-        this.deck.discard(card);
-        this.renderer.updateUI(this);
-        setTimeout(() => this.executePlayQueue(player), 400);
+        this.handleWuke(player, card);
         return;
       default:
         // 其他牌的默认处理
@@ -554,6 +549,52 @@ export class Game {
     });
     
     this.deck.discard(card);
+    this.renderer.updateUI(this);
+    setTimeout(() => this.executePlayQueue(player), 400);
+  }
+
+  // 无懈可击
+  handleWuke(player, card) {
+    // 查找场上所有可被无懈的目标（延时锦囊）
+    const wukeTargets = [];
+    
+    this.players.forEach(p => {
+      if (p.judgeCards && p.judgeCards.length > 0) {
+        p.judgeCards.forEach((j, idx) => {
+          if (['lebusishu', 'bingliangcunduan', 'shandian'].includes(j.key)) {
+            wukeTargets.push({
+              player: p,
+              card: j,
+              index: idx
+            });
+          }
+        });
+      }
+    });
+    
+    if (wukeTargets.length === 0) {
+      // 无可抵消的锦囊，归还卡牌
+      this.renderer.addLog(`❌ 无法使用【无懈可击】：没有可抵消的锦囊`, 'normal');
+      player.handCards.push(card);
+      this.renderer.updatePlayer(player);
+      this.renderer.updateUI(this);
+      setTimeout(() => this.executePlayQueue(player), 400);
+      return;
+    }
+    
+    // 随机选择一个目标抵消
+    const target = wukeTargets[Math.floor(Math.random() * wukeTargets.length)];
+    const cardName = target.card.name;
+    
+    // 移除延时锦囊
+    target.player.judgeCards.splice(target.index, 1);
+    this.deck.discard(target.card);
+    
+    this.renderer.addLog(`🛡️ ${player.character.name} 使用【无懈可击】，抵消了 ${target.player.character.name} 的【${cardName}】`, 'skill');
+    
+    this.deck.discard(card);
+    this.renderer.updatePlayer(target.player);
+    this.renderer.updatePlayer(player);
     this.renderer.updateUI(this);
     setTimeout(() => this.executePlayQueue(player), 400);
   }
