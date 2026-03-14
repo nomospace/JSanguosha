@@ -399,45 +399,124 @@ export class Game {
     switch (card.key) {
       case 'sha':
         this.handleSha(player, target, card);
-        break;
+        return; // 这些方法会自己调用 executePlayQueue
       case 'tao':
         this.handleTao(player, player);
-        break;
+        return;
       case 'ji':
         this.handleJiu(player);
-        break;
+        return;
       case 'wuzhong':
         this.handleWuzhong(player);
-        break;
+        return;
       case 'juedou':
         this.handleJuedou(player, target, card);
-        break;
+        return;
       case 'shunshou':
         this.handleShunshou(player, target);
-        break;
+        return;
       case 'guoheshuang':
         this.handleGuohe(player, target);
-        break;
+        return;
       case 'nanman':
         this.handleNanman(player, card);
-        break;
+        return;
       case 'wanjian':
         this.handleWanjian(player, card);
-        break;
+        return;
       case 'lebusishu':
         this.handleLebu(player, target, card);
-        break;
+        return;
+      case 'jiedao':
+        this.handleJiedao(player, target, card);
+        return;
+      case 'taoyuan':
+        this.handleTaoyuan(player, card);
+        return;
       default:
+        // 其他牌的默认处理
         this.renderer.addLog(`使用【${card.name}】`, 'play');
         if (target) {
           target.takeDamage(1);
           this.renderer.updatePlayer(target);
           this.checkDeath(target, player);
         }
+        this.deck.discard(card);
+        this.renderer.updateUI(this);
+        setTimeout(() => this.executePlayQueue(player), 400);
+    }
+  }
+
+  // 借刀杀人
+  handleJiedao(player, target, card) {
+    this.renderer.addLog(`📜 对 ${target.character.name} 使用【借刀杀人】`, 'play');
+    
+    // 检查目标是否有武器
+    if (!target.equipment?.weapon) {
+      this.renderer.addLog(`${target.character.name} 没有武器，借刀杀人无效`, 'normal');
+      this.deck.discard(card);
+      this.renderer.updateUI(this);
+      setTimeout(() => this.executePlayQueue(player), 400);
+      return;
+    }
+    
+    // 目标选择：对某人出杀或弃置武器
+    const shaTarget = this.findValidTarget(target);
+    
+    if (shaTarget && target.handCards.some(c => c.key === 'sha')) {
+      // 目标有杀且有目标，对目标出杀
+      const shaIndex = target.handCards.findIndex(c => c.key === 'sha');
+      const sha = target.handCards.splice(shaIndex, 1)[0];
+      this.renderer.addLog(`${target.character.name} 对 ${shaTarget.character.name} 使用【杀】`, 'play');
+      
+      // 处理杀的效果
+      const decision = aiDecideShan(shaTarget, sha, target);
+      if (decision.useShan || decision.useBagua) {
+        this.renderer.addLog(`${shaTarget.character.name} 闪避成功`, 'normal');
+        if (decision.useShan) {
+          const shanIdx = shaTarget.handCards.findIndex(c => c.key === 'shan');
+          if (shanIdx !== -1) {
+            const shan = shaTarget.handCards.splice(shanIdx, 1)[0];
+            this.deck.discard(shan);
+          }
+        }
+      } else {
+        shaTarget.takeDamage(1);
+        this.renderer.addLog(`💥 ${shaTarget.character.name} 受到 1 点伤害`, 'play');
+        this.renderer.updatePlayer(shaTarget);
+        this.checkDeath(shaTarget, target);
+      }
+      
+      this.deck.discard(sha);
+    } else {
+      // 弃置武器
+      const weapon = target.equipment.weapon;
+      target.equipment.weapon = null;
+      this.deck.discard(weapon);
+      this.renderer.addLog(`${target.character.name} 弃置武器【${weapon.name}】`, 'play');
     }
     
     this.deck.discard(card);
+    this.renderer.updatePlayer(target);
     this.renderer.updateUI(this);
+    setTimeout(() => this.executePlayQueue(player), 400);
+  }
+
+  // 桃园结义
+  handleTaoyuan(player, card) {
+    this.renderer.addLog(`📜 使用【桃园结义】`, 'play');
+    
+    this.players.forEach(p => {
+      if (p.isAlive && p.hp < p.maxHp) {
+        p.heal(1);
+        this.renderer.addLog(`${p.character.name} 回复 1 点体力`, 'heal');
+        this.renderer.updatePlayer(p);
+      }
+    });
+    
+    this.deck.discard(card);
+    this.renderer.updateUI(this);
+    setTimeout(() => this.executePlayQueue(player), 400);
   }
 
   handleSha(player, target, card) {
