@@ -1,5 +1,12 @@
 import { CHARACTERS, KINGDOM_COLORS, getCharacterAvatar } from '../config/characters';
 import { CARDS, SUITS, CARD_TYPES, getCardImage, getCardPlaceholder } from '../config/cards';
+import { 
+  calculateDistance, canAttack, getAttackRange,
+  equipWeapon, equipArmor, equipDefenseHorse, equipOffenseHorse,
+  canUseShan, useShan, canUseTao, useTao,
+  checkSkillTrigger, judge, checkJudgeResult,
+  isDying, checkGameOver
+} from './Logic';
 
 export class Game {
   constructor() {
@@ -13,6 +20,8 @@ export class Game {
     this.isPaused = false;
     this.logEntries = [];
     this.tooltip = null;
+    this.delayedTraps = []; // 延时锦囊
+    this.judgeDeck = []; // 判定牌堆
   }
 
   init() {
@@ -22,23 +31,6 @@ export class Game {
     this.showBuildTimestamp();
     this.log('🎮 欢迎来到三国杀 Mini！', 'system');
     this.log('点击"开始游戏"按钮开始对战', 'system');
-  }
-
-  showBuildTimestamp() {
-    const tsEl = document.getElementById('build-timestamp');
-    if (tsEl) {
-      const now = new Date();
-      const timeStr = now.toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      });
-      tsEl.textContent = `🕐 构建时间：${timeStr}`;
-    }
   }
 
   // ========== 悬浮提示 ==========
@@ -52,17 +44,13 @@ export class Game {
       desc: document.getElementById('tooltip-desc')
     };
 
-    // 鼠标移动时更新提示位置
     document.addEventListener('mousemove', (e) => {
       if (this.tooltip.el.classList.contains('show')) {
         const x = e.clientX + 15;
         const y = e.clientY + 15;
-        
-        // 防止超出屏幕
         const rect = this.tooltip.el.getBoundingClientRect();
         const maxX = window.innerWidth - rect.width - 20;
         const maxY = window.innerHeight - rect.height - 20;
-        
         this.tooltip.el.style.left = Math.min(x, maxX) + 'px';
         this.tooltip.el.style.top = Math.min(y, maxY) + 'px';
       }
@@ -79,14 +67,12 @@ export class Game {
 
     this.tooltip.image.src = imageUrl;
     this.tooltip.image.onerror = () => {
-      // 图片加载失败时显示精美的占位图
       this.tooltip.image.src = placeholderUrl;
     };
     this.tooltip.name.textContent = card.name;
     this.tooltip.name.style.color = card.color;
     this.tooltip.suit.textContent = `${suit.symbol} ${suit.name} | ${CARD_TYPES[card.type].name}`;
     this.tooltip.desc.textContent = card.description;
-
     this.tooltip.el.classList.add('show');
   }
 
@@ -101,7 +87,6 @@ export class Game {
   renderPlayers() {
     const grid = document.getElementById('players-grid');
     grid.innerHTML = '';
-
     const positions = this.calculatePlayerPositions(this.playerCount);
 
     positions.forEach((pos, index) => {
@@ -113,7 +98,10 @@ export class Game {
         maxHp: character.hp,
         handCards: [],
         isAlive: true,
-        element: null
+        element: null,
+        equipment: {},
+        hasUsedSha: false,
+        isZhiji: false
       };
       this.players.push(player);
 
@@ -142,6 +130,7 @@ export class Game {
       <div class="player-skill">【${player.character.skill}】${player.character.description}</div>
       <div class="player-hp" id="hp-${player.index}">${this.renderHP(player.hp, player.maxHp)}</div>
       <div class="player-cards" id="cards-${player.index}">📦 0 张手牌</div>
+      <div class="player-equipment" id="equip-${player.index}" style="margin-top:8px;font-size:12px;color:#95a5a6;"></div>
       <div class="hand-cards" id="hand-cards-${player.index}"></div>
     `;
 
@@ -160,9 +149,21 @@ export class Game {
     const cardsEl = document.getElementById(`cards-${player.index}`);
     const cardEl = document.getElementById(`player-${player.index}`);
     const handCardsEl = document.getElementById(`hand-cards-${player.index}`);
+    const equipEl = document.getElementById(`equip-${player.index}`);
 
     if (hpEl) hpEl.innerHTML = this.renderHP(player.hp, player.maxHp);
     if (cardsEl) cardsEl.textContent = `📦 ${player.handCards.length} 张手牌`;
+
+    // 显示装备
+    if (equipEl) {
+      const equip = player.equipment || {};
+      const parts = [];
+      if (equip.weapon) parts.push(`⚔️${equip.weapon.name}`);
+      if (equip.armor) parts.push(`🛡️${equip.armor.name}`);
+      if (equip.defenseHorse) parts.push(`🐴+1 马`);
+      if (equip.offenseHorse) parts.push(`🐴-1 马`);
+      equipEl.textContent = parts.length > 0 ? parts.join(' ') : '';
+    }
 
     // 渲染手牌
     if (handCardsEl) {
@@ -233,6 +234,7 @@ export class Game {
 
   initGame() {
     this.initDeck();
+    this.delayedTraps = [];
   }
 
   initDeck() {
@@ -276,6 +278,14 @@ export class Game {
       if (this.deck.length > 0) {
         const card = this.deck.pop();
         player.handCards.push(card);
+      } else if (this.discardPile.length > 0) {
+        // 牌堆空了，洗入弃牌堆
+        this.log('🔄 牌堆已空，洗入弃牌堆', 'system');
+        this.deck = [...this.discardPile];
+        this.discardPile = [];
+        this.shuffleDeck();
+        const card = this.deck.pop();
+        player.handCards.push(card);
       }
     }
     this.updatePlayerDisplay(player);
@@ -284,7 +294,6 @@ export class Game {
 
   startGame() {
     if (this.gameState === 'playing') {
-      // 重新开始
       this.resetGame();
       return;
     }
@@ -318,6 +327,7 @@ export class Game {
     this.turnCount = 0;
     this.isPaused = false;
     this.logEntries = [];
+    this.delayedTraps = [];
     document.getElementById('log-content').innerHTML = '';
 
     const btnStart = document.getElementById('btn-start');
@@ -379,93 +389,435 @@ export class Game {
       return;
     }
 
+    // 处理延时锦囊
+    this.processDelayedTraps(player);
+
     this.turnCount++;
     this.log(`========== 第 ${this.turnCount} 回合 - ${player.character.name} ==========`, 'turn');
-    this.log(`📦 摸牌阶段`, 'phase');
+    
+    player.hasUsedSha = false;
+    player.isZhiji = false;
 
-    this.highlightPlayer(player);
-    this.updateUI();
+    // 准备阶段
+    this.log(`🌅 准备阶段`, 'phase');
+    this.checkPrepareSkills(player);
+
+    // 摸牌阶段
+    this.log(`📦 摸牌阶段`, 'phase');
+    this.drawCardsPhase(player);
 
     setTimeout(() => {
-      this.drawCard(player, 2);
-      this.log(`🃏 摸了 2 张牌`, 'draw');
-
-      setTimeout(() => {
-        this.log(`🎯 出牌阶段`, 'phase');
-        this.aiPlayCard(player);
-      }, 800);
-    }, 500);
+      this.log(`🎯 出牌阶段`, 'phase');
+      this.playPhase(player);
+    }, 800);
   }
 
-  aiPlayCard(player) {
+  // 准备阶段技能
+  checkPrepareSkills(player) {
+    const result = checkSkillTrigger(player, 'prepare', {});
+    if (result.triggered && result.skill === '洛神') {
+      this.log(`🌙 ${player.character.name} 发动【洛神】`, 'skill');
+      let blackCount = 0;
+      while (this.deck.length > 0) {
+        const result = judge();
+        this.log(`判定：${result.suitSymbol}${result.suitName} ${result.number}`, 'normal');
+        if (result.isBlack) {
+          blackCount++;
+          this.drawCard(player, 1);
+          this.log(`黑色，获得此牌（共${blackCount}张）`, 'skill');
+          if (Math.random() > 0.7) break; // 简化：70% 概率继续
+        } else {
+          this.log(`红色，洛神结束`, 'skill');
+          break;
+        }
+      }
+    }
+  }
+
+  // 摸牌阶段
+  drawCardsPhase(player) {
+    // 检查兵粮寸断
+    const bingliang = this.delayedTraps.find(t => t.target === player && t.type === 'bingliang');
+    if (bingliang) {
+      const result = judge();
+      this.log(`🍚 兵粮寸断判定：${result.suitSymbol}${result.suitName} ${result.number}`, 'normal');
+      if (result.suit === 'club') {
+        this.log(`梅花，跳过摸牌阶段`, 'skill');
+        return;
+      }
+      this.removeDelayedTrap(player, 'bingliang');
+    }
+
+    // 正常摸牌
+    const skillResult = checkSkillTrigger(player, 'mopai', {});
+    let drawCount = 2;
+    if (skillResult.triggered && skillResult.effect === 'draw_less') {
+      drawCount = 1; // 裸衣
+    }
+    this.drawCard(player, drawCount);
+    this.log(`摸了 ${drawCount} 张牌`, 'draw');
+  }
+
+  // 出牌阶段
+  playPhase(player) {
     if (player.handCards.length === 0 || !player.isAlive) {
       this.endTurn();
       return;
     }
 
-    const cardIndex = Math.floor(Math.random() * player.handCards.length);
-    const card = player.handCards[cardIndex];
+    // AI 出牌逻辑
+    this.aiPlayCards(player);
+  }
 
-    this.log(`🃏 使用【${card.name}】`, 'play');
+  aiPlayCards(player) {
+    const maxPlays = 10; // 防止无限循环
+    let plays = 0;
+
+    const playInterval = setInterval(() => {
+      if (plays >= maxPlays || !player.isAlive || player.handCards.length === 0) {
+        clearInterval(playInterval);
+        this.endTurn();
+        return;
+      }
+
+      const played = this.aiPlayOneCard(player);
+      if (!played) {
+        clearInterval(playInterval);
+        this.endTurn();
+      }
+      plays++;
+    }, 600);
+  }
+
+  aiPlayOneCard(player) {
+    // 1. 优先使用装备
+    const equipCardIndex = player.handCards.findIndex(card => 
+      ['weapon', 'armor', 'defense_horse', 'offense_horse'].includes(card.type)
+    );
+    if (equipCardIndex !== -1) {
+      const card = player.handCards[equipCardIndex];
+      this.equipCard(player, card, equipCardIndex);
+      return true;
+    }
+
+    // 2. 使用桃
+    if (player.hp < player.maxHp) {
+      const taoIndex = player.handCards.findIndex(card => card.key === 'tao');
+      if (taoIndex !== -1) {
+        this.useTaoCard(player, taoIndex);
+        return true;
+      }
+    }
+
+    // 3. 使用杀
+    if (!player.hasUsedSha) {
+      const shaIndex = player.handCards.findIndex(card => card.key === 'sha');
+      if (shaIndex !== -1) {
+        const target = this.findValidTarget(player);
+        if (target) {
+          this.useShaCard(player, target, shaIndex);
+          return true;
+        }
+      }
+    }
+
+    // 4. 使用锦囊
+    const scrollCardIndex = player.handCards.findIndex(card => card.type === 'scroll');
+    if (scrollCardIndex !== -1) {
+      const card = player.handCards[scrollCardIndex];
+      this.useScrollCard(player, card, scrollCardIndex);
+      return true;
+    }
+
+    return false;
+  }
+
+  findValidTarget(source) {
+    for (const player of this.players) {
+      if (player !== source && player.isAlive && canAttack(source, player, this.players)) {
+        return player;
+      }
+    }
+    return null;
+  }
+
+  equipCard(player, card, cardIndex) {
+    let oldEquip = null;
+    
+    switch (card.type) {
+      case 'weapon':
+        oldEquip = equipWeapon(player, card);
+        this.log(`⚔️ ${player.character.name} 装备【${card.name}】`, 'play');
+        break;
+      case 'armor':
+        oldEquip = equipArmor(player, card);
+        this.log(`🛡️ ${player.character.name} 装备【${card.name}】`, 'play');
+        break;
+      case 'defense_horse':
+        oldEquip = equipDefenseHorse(player, card);
+        this.log(`🐴 ${player.character.name} 装备【${card.name}】`, 'play');
+        break;
+      case 'offense_horse':
+        oldEquip = equipOffenseHorse(player, card);
+        this.log(`🐴 ${player.character.name} 装备【${card.name}】`, 'play');
+        break;
+    }
+
+    player.handCards.splice(cardIndex, 1);
+    this.discardPile.push(card);
+    
+    if (oldEquip) {
+      this.discardPile.push(oldEquip);
+    }
+
+    this.updatePlayerDisplay(player);
+    this.updateUI();
+  }
+
+  useTaoCard(player, cardIndex) {
+    player.handCards.splice(cardIndex, 1);
+    player.hp = Math.min(player.maxHp, player.hp + 1);
+    this.discardPile.push({ key: 'tao', name: '桃' });
+    this.log(`❤️ ${player.character.name} 使用【桃】回复 1 点体力`, 'heal');
+    this.updatePlayerDisplay(player);
+    this.updateUI();
+  }
+
+  useShaCard(player, target, cardIndex) {
+    const card = player.handCards[cardIndex];
+    player.handCards.splice(cardIndex, 1);
+    player.hasUsedSha = true;
+
+    this.log(`⚔️ ${player.character.name} 对 ${target.character.name} 使用【杀】`, 'play');
+
+    // 检查无双
+    const wushuang = checkSkillTrigger(target, 'use_juedou', {});
+    const needShanCount = wushuang.triggered ? 2 : 1;
 
     setTimeout(() => {
-      const targetPlayer = this.getRandomTarget(player);
-      this.resolveCard(player, targetPlayer, card, cardIndex);
+      // 目标出闪
+      let shanUsed = 0;
+      for (let i = 0; i < needShanCount; i++) {
+        if (canUseShan(target)) {
+          const shan = useShan(target);
+          if (shan) {
+            shanUsed++;
+            target.discardPile = target.discardPile || [];
+            target.discardPile.push(shan);
+            this.log(`🛡️ ${target.character.name} 使用【闪】`, 'normal');
+          }
+        }
+      }
+
+      if (shanUsed < needShanCount) {
+        // 造成伤害
+        let damage = 1;
+        
+        // 酒
+        if (player.isZhiji) damage++;
+        
+        // 古锭刀 + 酒 + 藤甲
+        if (player.equipment?.weapon?.key === 'hanbing' && target.equipment?.armor?.key === 'tengjia') {
+          damage++;
+        }
+
+        target.hp = Math.max(0, target.hp - damage);
+        this.log(`💥 造成 ${damage} 点伤害`, 'play');
+        this.updatePlayerDisplay(target);
+
+        if (target.hp <= 0) {
+          this.handleDeath(target, player);
+        }
+
+        // 技能触发
+        const skillResult = checkSkillTrigger(player, 'damaged', { card, target });
+        if (skillResult.triggered) {
+          this.log(`✨ ${player.character.name} 发动【${skillResult.skill}】`, 'skill');
+        }
+      }
+
+      this.discardPile.push(card);
+      this.updateUI();
     }, 500);
   }
 
-  getRandomTarget(sourcePlayer) {
-    const alivePlayers = this.players.filter(p => p !== sourcePlayer && p.isAlive);
-    if (alivePlayers.length === 0) return sourcePlayer;
-    return alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
-  }
-
-  resolveCard(sourcePlayer, targetPlayer, card, cardIndex) {
-    let damage = 1;
-
-    if (card.key === 'juedou') damage = 2;
-    if (card.key === 'tao') {
-      if (sourcePlayer.hp < sourcePlayer.maxHp) {
-        sourcePlayer.hp = Math.min(sourcePlayer.maxHp, sourcePlayer.hp + 1);
-        this.updatePlayerDisplay(sourcePlayer);
-        this.log(`❤️ ${sourcePlayer.character.name} 使用【桃】回复 1 点体力`, 'heal');
-      }
-      sourcePlayer.handCards.splice(cardIndex, 1);
+  useScrollCard(player, card, cardIndex) {
+    // 简化处理：大部分锦囊造成伤害
+    const target = this.findValidTarget(player);
+    if (!target) {
+      player.handCards.splice(cardIndex, 1);
       this.discardPile.push(card);
-      this.endTurn();
+      this.updatePlayerDisplay(player);
       return;
     }
 
-    this.log(`⚔️ ${sourcePlayer.character.name} 对 ${targetPlayer.character.name} 造成 ${damage} 点伤害`, 'play');
+    player.handCards.splice(cardIndex, 1);
+    this.discardPile.push(card);
 
-    targetPlayer.hp = Math.max(0, targetPlayer.hp - damage);
-    this.updatePlayerDisplay(targetPlayer);
-
-    if (targetPlayer.hp <= 0) {
-      targetPlayer.isAlive = false;
-      this.log(`💀 ${targetPlayer.character.name} 阵亡！`, 'death');
+    switch (card.key) {
+      case 'wuzhong':
+        this.log(`📜 ${player.character.name} 使用【无中生有】`, 'play');
+        this.drawCard(player, 2);
+        this.log(`摸了 2 张牌`, 'draw');
+        break;
+      
+      case 'juedou':
+        this.log(`⚔️ ${player.character.name} 对 ${target.character.name} 使用【决斗】`, 'play');
+        this.resolveJuedou(player, target);
+        break;
+      
+      case 'shunshou':
+      case 'guoheshuang':
+        if (target.handCards.length > 0) {
+          const stealIndex = Math.floor(Math.random() * target.handCards.length);
+          const stolenCard = target.handCards.splice(stealIndex, 1)[0];
+          player.handCards.push(stolenCard);
+          this.log(`📜 ${player.character.name} 使用【${card.name}】获得 ${target.character.name} 的【${stolenCard.name}】`, 'play');
+          this.updatePlayerDisplay(player);
+          this.updatePlayerDisplay(target);
+        }
+        break;
+      
+      case 'nanman':
+      case 'wanjian':
+        this.log(`📜 ${player.character.name} 使用【${card.name}】`, 'play');
+        this.resolveAOE(player, card);
+        break;
+      
+      default:
+        // 其他锦囊简化为造成 1 点伤害
+        this.log(`📜 ${player.character.name} 使用【${card.name}】对 ${target.character.name}`, 'play');
+        target.hp = Math.max(0, target.hp - 1);
+        this.updatePlayerDisplay(target);
+        if (target.hp <= 0) {
+          this.handleDeath(target, player);
+        }
     }
 
-    sourcePlayer.handCards.splice(cardIndex, 1);
-    this.discardPile.push(card);
     this.updateUI();
+  }
 
-    setTimeout(() => {
-      this.endTurn();
-    }, 800);
+  resolveJuedou(source, target) {
+    // 简化决斗逻辑
+    const sourceSha = source.handCards.some(c => c.key === 'sha');
+    const targetSha = target.handCards.some(c => c.key === 'sha');
+
+    if (sourceSha && !targetSha) {
+      target.hp = Math.max(0, target.hp - 1);
+      this.log(`💥 ${target.character.name} 没有【杀】，受到 1 点伤害`, 'play');
+      this.updatePlayerDisplay(target);
+      if (target.hp <= 0) this.handleDeath(target, source);
+    } else if (!sourceSha && targetSha) {
+      source.hp = Math.max(0, source.hp - 1);
+      this.log(`💥 ${source.character.name} 没有【杀】，受到 1 点伤害`, 'play');
+      this.updatePlayerDisplay(source);
+      if (source.hp <= 0) this.handleDeath(source, target);
+    } else {
+      this.log(`🤝 双方都有【杀】，平局`, 'normal');
+    }
+
+    this.updateUI();
+  }
+
+  resolveAOE(source, card) {
+    const isNanman = card.key === 'nanman';
+    const requiredCard = isNanman ? 'sha' : 'shan';
+    const cardName = isNanman ? '杀' : '闪';
+
+    this.players.forEach(player => {
+      if (player !== source && player.isAlive) {
+        const hasCard = player.handCards.some(c => c.key === requiredCard);
+        if (hasCard) {
+          const index = player.handCards.findIndex(c => c.key === requiredCard);
+          player.handCards.splice(index, 1);
+          this.discardPile.push({ key: requiredCard, name: cardName });
+          this.log(`🛡️ ${player.character.name} 打出【${cardName}】`, 'normal');
+        } else {
+          player.hp = Math.max(0, player.hp - 1);
+          this.log(`💥 ${player.character.name} 受到 1 点伤害`, 'play');
+          this.updatePlayerDisplay(player);
+          if (player.hp <= 0) this.handleDeath(player, source);
+        }
+      }
+    });
+
+    this.updateUI();
+  }
+
+  handleDeath(player, killer) {
+    player.isAlive = false;
+    this.log(`💀 ${player.character.name} 阵亡！`, 'death');
+
+    // 奖惩
+    if (killer && player.character.kingdom !== killer.character.kingdom) {
+      this.log(`🎁 ${killer.character.name} 击杀 ${player.character.name}，摸 3 张牌`, 'skill');
+      this.drawCard(killer, 3);
+    }
+
+    this.updatePlayerDisplay(player);
+  }
+
+  processDelayedTraps(player) {
+    // 乐不思蜀
+    const lebusishu = this.delayedTraps.find(t => t.target === player && t.type === 'lebusishu');
+    if (lebusishu) {
+      const result = judge();
+      this.log(`🎭 乐不思蜀判定：${result.suitSymbol}${result.suitName} ${result.number}`, 'normal');
+      if (result.suit === 'heart') {
+        this.log(`红桃，乐不思蜀无效`, 'skill');
+      } else {
+        this.log(`非红桃，跳过出牌阶段`, 'skill');
+        player.skipPlayPhase = true;
+      }
+      this.removeDelayedTrap(player, 'lebusishu');
+    }
+
+    // 闪电
+    const shandian = this.delayedTraps.find(t => t.target === player && t.type === 'shandian');
+    if (shandian) {
+      const result = judge();
+      this.log(`⚡ 闪电判定：${result.suitSymbol}${result.suitName} ${result.number}`, 'normal');
+      if (result.suit === 'spade' && result.number >= 2 && result.number <= 9) {
+        player.hp = Math.max(0, player.hp - 3);
+        this.log(`⚡ 黑桃 2-9，受到 3 点雷电伤害！`, 'death');
+        this.updatePlayerDisplay(player);
+        if (player.hp <= 0) this.handleDeath(player, null);
+      } else {
+        // 移动到下家
+        const nextIndex = (player.index + 1) % this.players.length;
+        const nextPlayer = this.players[nextIndex];
+        shandian.target = nextPlayer;
+        this.log(`⚡ 闪电移动到 ${nextPlayer.character.name}`, 'normal');
+      }
+      this.removeDelayedTrap(player, 'shandian');
+    }
+  }
+
+  removeDelayedTrap(player, type) {
+    this.delayedTraps = this.delayedTraps.filter(t => !(t.target === player && t.type === type));
   }
 
   endTurn() {
+    const player = this.players[this.currentPlayerIndex];
     this.log(`✅ 回合结束`, 'system');
 
-    const player = this.players[this.currentPlayerIndex];
-
-    if (player.character.key === 'diaochan' && player.isAlive) {
-      setTimeout(() => {
-        this.drawCard(player, 1);
-        this.log(`🌙 貂蝉发动【闭月】摸 1 张牌`, 'skill');
-      }, 500);
+    // 结束阶段技能
+    const skillResult = checkSkillTrigger(player, 'end_phase', {});
+    if (skillResult.triggered && skillResult.effect === 'draw_one') {
+      this.log(`🌙 ${player.character.name} 发动【${skillResult.skill}】摸 1 张牌`, 'skill');
+      this.drawCard(player, 1);
     }
+
+    // 弃牌阶段
+    const maxCards = player.hp * 2;
+    if (player.handCards.length > maxCards) {
+      const discardCount = player.handCards.length - maxCards;
+      this.log(`🗑️ 弃牌阶段，弃置 ${discardCount} 张牌`, 'phase');
+      player.handCards.splice(0, discardCount); // 简化：弃置前几张
+      this.updatePlayerDisplay(player);
+    }
+
+    this.updateUI();
 
     setTimeout(() => {
       this.nextTurn();
@@ -473,25 +825,10 @@ export class Game {
   }
 
   nextTurn() {
-    if (this.checkGameOver()) {
-      return;
-    }
-
-    do {
-      this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
-    } while (!this.players[this.currentPlayerIndex].isAlive);
-
-    this.startTurn();
-  }
-
-  checkGameOver() {
-    const aliveCount = this.players.filter(p => p.isAlive).length;
-
-    if (aliveCount <= 1) {
+    const gameOver = checkGameOver(this.players);
+    if (gameOver.over) {
       this.gameState = 'ended';
-      const winner = this.players.find(p => p.isAlive);
-
-      this.log(`🏆 游戏结束！${winner ? winner.character.name : '无人'} 获胜！`, 'system');
+      this.log(`🏆 游戏结束！${gameOver.winner ? gameOver.winner.character.name : '无人'} 获胜！`, 'system');
 
       const btnStart = document.getElementById('btn-start');
       const btnPause = document.getElementById('btn-pause');
@@ -501,20 +838,21 @@ export class Game {
         btnStart.classList.remove('btn-danger');
         btnStart.classList.add('btn-primary');
       }
-      if (btnPause) {
-        btnPause.style.display = 'none';
-      }
+      if (btnPause) btnPause.style.display = 'none';
 
       const gameStatus = document.getElementById('game-status');
       if (gameStatus) {
         gameStatus.textContent = '游戏结束';
         gameStatus.style.background = '#e74c3c';
       }
-
-      return true;
+      return;
     }
 
-    return false;
+    do {
+      this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+    } while (!this.players[this.currentPlayerIndex].isAlive);
+
+    this.startTurn();
   }
 
   // ========== 日志系统 ==========
@@ -540,6 +878,23 @@ export class Game {
     ).join('');
 
     logContent.scrollTop = logContent.scrollHeight;
+  }
+
+  showBuildTimestamp() {
+    const tsEl = document.getElementById('build-timestamp');
+    if (tsEl) {
+      const now = new Date();
+      const timeStr = now.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+      tsEl.textContent = `🕐 构建时间：${timeStr}`;
+    }
   }
 
   calculatePlayerPositions(count) {
