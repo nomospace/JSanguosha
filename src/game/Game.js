@@ -1,5 +1,5 @@
 import { CHARACTERS, KINGDOM_COLORS, getCharacterAvatar } from '../config/characters';
-import { CARDS, SUITS, CARD_TYPES, getCardImage } from '../config/cards';
+import { CARDS, SUITS, CARD_TYPES, getCardImage, getCardPlaceholder } from '../config/cards';
 
 export class Game {
   constructor() {
@@ -19,8 +19,26 @@ export class Game {
     this.renderPlayers();
     this.updateUI();
     this.initTooltip();
+    this.showBuildTimestamp();
     this.log('🎮 欢迎来到三国杀 Mini！', 'system');
     this.log('点击"开始游戏"按钮开始对战', 'system');
+  }
+
+  showBuildTimestamp() {
+    const tsEl = document.getElementById('build-timestamp');
+    if (tsEl) {
+      const now = new Date();
+      const timeStr = now.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+      tsEl.textContent = `🕐 构建时间：${timeStr}`;
+    }
   }
 
   // ========== 悬浮提示 ==========
@@ -57,11 +75,12 @@ export class Game {
 
     const suit = SUITS[card.suit];
     const imageUrl = getCardImage(cardKey);
+    const placeholderUrl = getCardPlaceholder(cardKey);
 
     this.tooltip.image.src = imageUrl;
     this.tooltip.image.onerror = () => {
-      // 图片加载失败时显示占位图
-      this.tooltip.image.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 140"><rect fill="%231a1a2e" width="100" height="140"/><text x="50" y="70" text-anchor="middle" fill="%23f39c12" font-size="14">卡牌图片</text></svg>';
+      // 图片加载失败时显示精美的占位图
+      this.tooltip.image.src = placeholderUrl;
     };
     this.tooltip.name.textContent = card.name;
     this.tooltip.name.style.color = card.color;

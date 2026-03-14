@@ -368,7 +368,7 @@ export const CARD_TYPES = {
   offense_horse: { name: '-1 马', color: '#27ae60' }
 };
 
-// 卡牌图片 CDN 基础 URL
+// 卡牌图片 CDN 基础 URL（如果图片不存在，使用占位图）
 export const CARD_IMAGE_BASE = 'https://raw.githubusercontent.com/nomospace/sanguosha-assets/main/cards/';
 
 // 获取卡牌图片 URL
@@ -376,4 +376,30 @@ export function getCardImage(cardKey) {
   const card = CARDS[cardKey];
   if (!card) return null;
   return `${CARD_IMAGE_BASE}${card.image}`;
+}
+
+// 生成卡牌占位图（SVG Data URL）
+export function getCardPlaceholder(cardKey) {
+  const card = CARDS[cardKey];
+  if (!card) return '';
+  
+  const suit = SUITS[card.suit];
+  const bgColor = card.color.replace('#', '%23');
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 140">
+      <defs>
+        <linearGradient id="grad-${cardKey}" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:${card.color};stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#1a1a2e;stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <rect fill="url(#grad-${cardKey})" width="100" height="140" rx="8"/>
+      <text x="50" y="35" text-anchor="middle" fill="#fff" font-size="24" font-weight="bold">${suit.symbol}</text>
+      <text x="50" y="75" text-anchor="middle" fill="#fff" font-size="16" font-weight="bold">${card.name}</text>
+      <text x="50" y="100" text-anchor="middle" fill="#f39c12" font-size="12">${CARD_TYPES[card.type].name}</text>
+      <text x="50" y="125" text-anchor="middle" fill="#fff" font-size="20">${suit.symbol}</text>
+    </svg>
+  `.trim().replace(/\n/g, '');
+  
+  return `data:image/svg+xml,${svg}`;
 }
