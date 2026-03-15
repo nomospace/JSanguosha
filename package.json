@@ -5,7 +5,7 @@
   "main": "src/main.js",
   "scripts": {
     "dev": "webpack serve --mode development --port 3005",
-    "build": "webpack --mode production",
+    "build": "webpack --mode production && node scripts/add-timestamp.js",
     "deploy": "bash deploy.sh"
   },
   "keywords": ["sanguosha", "jsanguosha", "card-game", "text-mode"],

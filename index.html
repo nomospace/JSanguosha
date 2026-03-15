@@ -46,22 +46,38 @@
     .pause-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.7);
+      background: rgba(0,0,0,0.8);
       backdrop-filter: blur(4px);
       z-index: 100;
       display: none;
       align-items: center;
       justify-content: center;
+      cursor: pointer;
     }
     
     .pause-overlay.show {
       display: flex;
     }
     
+    .pause-box {
+      text-align: center;
+      padding: 30px 50px;
+      background: var(--bg-card);
+      border-radius: 16px;
+      border: 2px solid var(--primary);
+      box-shadow: 0 0 30px rgba(243, 156, 18, 0.3);
+    }
+    
     .pause-text {
-      font-size: 32px;
+      font-size: 28px;
       font-weight: 700;
       color: var(--primary);
+      margin-bottom: 20px;
+    }
+    
+    .pause-hint {
+      font-size: 14px;
+      color: var(--text-muted);
     }
     
     /* 顶部 */
@@ -827,8 +843,12 @@
 <body>
   <div class="app">
     <!-- 暂停遮罩 -->
-    <div class="pause-overlay" id="pause-overlay">
-      <span class="pause-text">⏸️ 已暂停</span>
+    <div class="pause-overlay" id="pause-overlay" onclick="game.togglePause()">
+      <div class="pause-box" onclick="event.stopPropagation()">
+        <div class="pause-text">⏸️ 游戏暂停</div>
+        <button class="btn btn-primary" onclick="game.togglePause()" style="padding:12px 40px;font-size:16px;">▶️ 继续游戏</button>
+        <div class="pause-hint" style="margin-top:12px;">或点击空白区域继续</div>
+      </div>
     </div>
     
     <!-- 顶部 -->
@@ -938,6 +958,6 @@
     </div>
   </div>
   
-  <script src="game.bundle.js"></script>
+  <script src="game.bundle.js?v=1773582544498"></script>
 </body>
 </html>
