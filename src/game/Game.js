@@ -346,7 +346,8 @@ export class Game {
   }
 
   togglePause() {
-    if (this.gameState !== 'playing') return;
+    // 允许 playing 或 paused 状态切换
+    if (this.gameState !== 'playing' && this.gameState !== 'paused') return;
 
     this.isPaused = !this.isPaused;
     const btnPause = document.getElementById('btn-pause');
@@ -883,17 +884,9 @@ export class Game {
   showBuildTimestamp() {
     const tsEl = document.getElementById('build-timestamp');
     if (tsEl) {
-      const now = new Date();
-      const timeStr = now.toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      });
-      tsEl.textContent = `🕐 构建时间：${timeStr}`;
+      // 使用 webpack 构建时注入的时间戳
+      const buildTime = typeof BUILD_TIME !== 'undefined' ? BUILD_TIME : '开发模式';
+      tsEl.textContent = `🕐 构建：${buildTime}`;
     }
   }
 
