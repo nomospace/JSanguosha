@@ -4,9 +4,9 @@
 
 ## 🌐 访问地址
 
-- **本地**: http://localhost:3005/
-- **公网**: http://47.102.199.24:3005/
-- **GitHub**: https://github.com/nomospace/JSanguosha
+- **GitHub Pages**: https://nomospace.github.io/JSanguosha/
+- **本地开发**: http://localhost:3005/
+- **仓库地址**: https://github.com/nomospace/JSanguosha
 
 ## ✨ 特性
 
